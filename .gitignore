@@ -1,0 +1,45 @@
+# --- Secrets & local overrides (never commit) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# Docker Compose with real credentials — use *.example.yml templates
+docker-compose.yml
+docker-compose.override.yml
+tests/docker-compose.yml
+
+# --- Go ---
+/bin/
+/dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+go.work.sum
+/vendor/
+
+# Test / coverage
+coverage.out
+coverage.html
+*.coverprofile
+
+# --- OS & editors ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# --- Logs & temp ---
+*.log
+tmp/
+temp/

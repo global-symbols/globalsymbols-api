@@ -1,0 +1,17 @@
+# Copy to tests/docker-compose.yml and set TEST_API_KEY (tests/docker-compose.yml is gitignored).
+version: "3.9"
+
+services:
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /app
+    volumes:
+      - "..:/app"
+    environment:
+      GO_API_BASE_URL: "http://host.docker.internal:8080"
+      TEST_RAILS_BASE_URL: "http://host.docker.internal:3000"
+      TEST_GO_BASE_URL: "http://host.docker.internal:8080"
+      TEST_API_KEY: "replace-with-valid-api-key-for-tests"
+    command: ["sleep", "infinity"]

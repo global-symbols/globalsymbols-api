@@ -1,0 +1,16 @@
+# Copy to docker-compose.yml and fill in real values (docker-compose.yml is gitignored).
+version: "3.9"
+
+services:
+  go-api:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      DB_DSN: "user:password@tcp(host.docker.internal:3307)/dbname?parseTime=true&charset=utf8mb4&loc=UTC"
+      API_IMAGE_BASE_URL: "http://host.docker.internal:3000"
+      RAILS_API_BASE_URL: "http://host.docker.internal:3000"
+      PORT: "8080"
+      DIRECTUS_URL: "https://your-directus-host"
+      DIRECTUS_SERVICE_TOKEN: "replace-with-directus-static-token"
+      TEAMS_WEBHOOK_URL: "replace-or-leave-empty-if-unused"
