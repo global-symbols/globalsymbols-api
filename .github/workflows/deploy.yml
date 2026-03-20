@@ -38,10 +38,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           # Use the repo's Go version if declared; otherwise actions/setup-go will fall back safely.
           go-version-file: go.mod
@@ -100,7 +100,8 @@ jobs:
           #     metadata/built_at_utc.txt
           mkdir -p "package/${RELEASE_ID}/scripts" "package/${RELEASE_ID}/metadata"
 
-          # Copy the install script that task 3 will implement on the server side.
+          # Copy the server-side install script into the release so operators use the
+          # installer version that matches the uploaded artifact.
           if [[ ! -f "scripts/deploy/install_release.sh" ]]; then
             echo "::error::Missing scripts/deploy/install_release.sh (required for packaging into scripts/install_release.sh)."
             exit 1
