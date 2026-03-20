@@ -39,7 +39,11 @@ Thumbs.db
 *.swo
 *~
 
+# Deployment prerequisites (may include environment-specific values)
+documents/deployment-prerequisites.md
+
 # --- Logs & temp ---
 *.log
 tmp/
 temp/
+tasks/

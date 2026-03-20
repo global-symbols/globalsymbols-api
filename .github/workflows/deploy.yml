@@ -1,0 +1,184 @@
+name: Deploy (CI build + upload)
+
+on:
+  push:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+
+    env:
+      RELEASE_ID: ${{ github.sha }}
+
+      # Pre-production (values from Task 1)
+      PREPRODUCTION_SSH_HOST: ${{ secrets.PREPRODUCTION_SSH_HOST }}
+      PREPRODUCTION_SSH_USER: ${{ vars.PREPRODUCTION_SSH_USER }}
+      PREPRODUCTION_UPLOAD_DIR: ${{ vars.PREPRODUCTION_UPLOAD_DIR }}
+      PREPRODUCTION_INSTALL_DIR: ${{ vars.PREPRODUCTION_INSTALL_DIR }}
+      PREPRODUCTION_SERVICE_NAME: ${{ vars.PREPRODUCTION_SERVICE_NAME }}
+      PREPRODUCTION_ENV_FILE: ${{ vars.PREPRODUCTION_ENV_FILE }}
+
+      # Production (values from Task 1)
+      PRODUCTION_SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+      PRODUCTION_SSH_USER: ${{ vars.PRODUCTION_SSH_USER }}
+      PRODUCTION_UPLOAD_DIR: ${{ vars.PRODUCTION_UPLOAD_DIR }}
+      PRODUCTION_INSTALL_DIR: ${{ vars.PRODUCTION_INSTALL_DIR }}
+      PRODUCTION_SERVICE_NAME: ${{ vars.PRODUCTION_SERVICE_NAME }}
+      PRODUCTION_ENV_FILE: ${{ vars.PRODUCTION_ENV_FILE }}
+
+      # Shared (values from Task 1)
+      DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+      DEPLOY_SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          # Use the repo's Go version if declared; otherwise actions/setup-go will fall back safely.
+          go-version-file: go.mod
+          cache: true
+
+      - name: Fail fast on missing required secrets/variables
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          require_non_empty() {
+            local name="$1"
+            local value="${!name:-}"
+            if [[ -z "${value}" ]]; then
+              echo "::error::Required ${name} is missing or empty."
+              exit 1
+            fi
+          }
+
+          # Shared
+          require_non_empty "DEPLOY_SSH_PRIVATE_KEY"
+          require_non_empty "DEPLOY_SSH_KNOWN_HOSTS"
+
+          # Pre-production
+          require_non_empty "PREPRODUCTION_SSH_HOST"
+          require_non_empty "PREPRODUCTION_SSH_USER"
+          require_non_empty "PREPRODUCTION_UPLOAD_DIR"
+          require_non_empty "PREPRODUCTION_INSTALL_DIR"
+          require_non_empty "PREPRODUCTION_SERVICE_NAME"
+          require_non_empty "PREPRODUCTION_ENV_FILE"
+
+          # Production
+          require_non_empty "PRODUCTION_SSH_HOST"
+          require_non_empty "PRODUCTION_SSH_USER"
+          require_non_empty "PRODUCTION_UPLOAD_DIR"
+          require_non_empty "PRODUCTION_INSTALL_DIR"
+          require_non_empty "PRODUCTION_SERVICE_NAME"
+          require_non_empty "PRODUCTION_ENV_FILE"
+
+      - name: Minimal build verification (tests)
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test ./...
+
+      - name: Build Go API (linux/amd64)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          export CGO_ENABLED=0
+          export GOOS=linux
+          export GOARCH=amd64
+
+          mkdir -p "package/${RELEASE_ID}/bin"
+          go build -o "package/${RELEASE_ID}/bin/go-api" ./cmd/api
+
+      - name: Package release artifact (predictable layout)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Expected release layout (see Task 1):
+          #   <RELEASE_ID>/
+          #     bin/go-api
+          #     scripts/install_release.sh
+          #     metadata/commit_sha.txt
+          #     metadata/built_at_utc.txt
+          mkdir -p "package/${RELEASE_ID}/scripts" "package/${RELEASE_ID}/metadata"
+
+          # Copy the install script that task 3 will implement on the server side.
+          if [[ ! -f "scripts/deploy/install_release.sh" ]]; then
+            echo "::error::Missing scripts/deploy/install_release.sh (required for packaging into scripts/install_release.sh)."
+            exit 1
+          fi
+
+          cp "scripts/deploy/install_release.sh" "package/${RELEASE_ID}/scripts/install_release.sh"
+          chmod +x "package/${RELEASE_ID}/scripts/install_release.sh"
+
+          echo "${GITHUB_SHA}" > "package/${RELEASE_ID}/metadata/commit_sha.txt"
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > "package/${RELEASE_ID}/metadata/built_at_utc.txt"
+
+      - name: Upload to pre-production (CI copy only)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p "${HOME}/.ssh"
+          printf "%s\n" "${DEPLOY_SSH_PRIVATE_KEY}" > "${HOME}/.ssh/deploy_key"
+          chmod 600 "${HOME}/.ssh/deploy_key"
+          printf "%s\n" "${DEPLOY_SSH_KNOWN_HOSTS}" > "${HOME}/.ssh/deploy_known_hosts"
+
+          ssh_opts=(
+            -i "${HOME}/.ssh/deploy_key"
+            -o StrictHostKeyChecking=yes
+            -o UserKnownHostsFile="${HOME}/.ssh/deploy_known_hosts"
+          )
+
+          target_dir="${PREPRODUCTION_UPLOAD_DIR%/}/${RELEASE_ID}"
+          ssh "${ssh_opts[@]}" "${PREPRODUCTION_SSH_USER}@${PREPRODUCTION_SSH_HOST}" \
+            "mkdir -p '${target_dir}'"
+
+          scp -r "${ssh_opts[@]}" "package/${RELEASE_ID}/"* \
+            "${PREPRODUCTION_SSH_USER}@${PREPRODUCTION_SSH_HOST}:${target_dir}/"
+
+          echo "Pre-production artifact copied to: ${target_dir}/"
+
+      - name: Upload to production (CI copy only)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p "${HOME}/.ssh"
+          printf "%s\n" "${DEPLOY_SSH_PRIVATE_KEY}" > "${HOME}/.ssh/deploy_key"
+          chmod 600 "${HOME}/.ssh/deploy_key"
+          printf "%s\n" "${DEPLOY_SSH_KNOWN_HOSTS}" > "${HOME}/.ssh/deploy_known_hosts"
+
+          ssh_opts=(
+            -i "${HOME}/.ssh/deploy_key"
+            -o StrictHostKeyChecking=yes
+            -o UserKnownHostsFile="${HOME}/.ssh/deploy_known_hosts"
+          )
+
+          target_dir="${PRODUCTION_UPLOAD_DIR%/}/${RELEASE_ID}"
+          ssh "${ssh_opts[@]}" "${PRODUCTION_SSH_USER}@${PRODUCTION_SSH_HOST}" \
+            "mkdir -p '${target_dir}'"
+
+          scp -r "${ssh_opts[@]}" "package/${RELEASE_ID}/"* \
+            "${PRODUCTION_SSH_USER}@${PRODUCTION_SSH_HOST}:${target_dir}/"
+
+          echo "Production artifact copied to: ${target_dir}/"
+
+      - name: Artifact copy locations (for task 3)
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Pre-production upload dir for this release:"
+          echo "${PREPRODUCTION_UPLOAD_DIR%/}/${RELEASE_ID}/"
+          echo
+          echo "Production upload dir for this release:"
+          echo "${PRODUCTION_UPLOAD_DIR%/}/${RELEASE_ID}/"
+
