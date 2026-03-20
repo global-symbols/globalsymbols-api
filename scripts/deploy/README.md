@@ -30,9 +30,9 @@ Expected contents:
 
 1. Run on the target server (either `pre-production` or `production`).
 2. Ensure the runtime environment file exists *outside* the release directory:
-   - `PREPRODUCTION_ENV_FILE` / `PRODUCTION_ENV_FILE` (see variables below)
+   - default path: `/var/www/globalsymbols-api/current/.env`
 3. Ensure the service is managed by systemd and can be restarted:
-   - `PREPRODUCTION_SERVICE_NAME` / `PRODUCTION_SERVICE_NAME`
+   - default service: `globalsymbols-api.service`
 4. Ensure you have permission to restart the service (typically via `sudo`).
 
 ### Command
@@ -44,24 +44,24 @@ Expected contents:
 ./install_release.sh --environment production --release-id <RELEASE_ID>
 ```
 
-## Required Inputs (Configurable Values)
+## Configurable Values
 
-These values are required and are the server-side counterparts of the keys defined in
-`documents/deployment-prerequisites.md` (Task 1).
+The install script now has built-in defaults for the stable deployment values below. You
+only need to set these environment variables if a server differs from the defaults.
 
 ### For `pre-production`
 
-- `PREPRODUCTION_UPLOAD_DIR` (directory where CI copied uploads)
-- `PREPRODUCTION_INSTALL_DIR` (final runtime base directory)
-- `PREPRODUCTION_SERVICE_NAME` (systemd unit name to restart)
-- `PREPRODUCTION_ENV_FILE` (path to existing `.env` file on the server)
+- `PREPRODUCTION_UPLOAD_DIR` default: `/var/www/globalsymbols-api/uploads`
+- `PREPRODUCTION_INSTALL_DIR` default: `/var/www/globalsymbols-api`
+- `PREPRODUCTION_SERVICE_NAME` default: `globalsymbols-api.service`
+- `PREPRODUCTION_ENV_FILE` default: `/var/www/globalsymbols-api/current/.env`
 
 ### For `production`
 
-- `PRODUCTION_UPLOAD_DIR` (directory where CI copied uploads)
-- `PRODUCTION_INSTALL_DIR` (final runtime base directory)
-- `PRODUCTION_SERVICE_NAME` (systemd unit name to restart)
-- `PRODUCTION_ENV_FILE` (path to existing `.env` file on the server)
+- `PRODUCTION_UPLOAD_DIR` default: `/var/www/globalsymbols-api/uploads`
+- `PRODUCTION_INSTALL_DIR` default: `/var/www/globalsymbols-api`
+- `PRODUCTION_SERVICE_NAME` default: `globalsymbols-api.service`
+- `PRODUCTION_ENV_FILE` default: `/var/www/globalsymbols-api/current/.env`
 
 ## What the Script Does
 

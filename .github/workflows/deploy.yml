@@ -14,23 +14,25 @@ jobs:
     env:
       RELEASE_ID: ${{ github.sha }}
 
-      # Pre-production (values from Task 1)
+      # Pre-production host remains a GitHub secret; the stable non-secret deployment
+      # settings are committed here to keep GitHub repo settings minimal.
       PREPRODUCTION_SSH_HOST: ${{ secrets.PREPRODUCTION_SSH_HOST }}
-      PREPRODUCTION_SSH_USER: ${{ vars.PREPRODUCTION_SSH_USER }}
-      PREPRODUCTION_UPLOAD_DIR: ${{ vars.PREPRODUCTION_UPLOAD_DIR }}
-      PREPRODUCTION_INSTALL_DIR: ${{ vars.PREPRODUCTION_INSTALL_DIR }}
-      PREPRODUCTION_SERVICE_NAME: ${{ vars.PREPRODUCTION_SERVICE_NAME }}
-      PREPRODUCTION_ENV_FILE: ${{ vars.PREPRODUCTION_ENV_FILE }}
+      PREPRODUCTION_SSH_USER: gs-api-deploy
+      PREPRODUCTION_UPLOAD_DIR: /var/www/globalsymbols-api/uploads
+      PREPRODUCTION_INSTALL_DIR: /var/www/globalsymbols-api
+      PREPRODUCTION_SERVICE_NAME: globalsymbols-api.service
+      PREPRODUCTION_ENV_FILE: /var/www/globalsymbols-api/current/.env
 
-      # Production (values from Task 1)
+      # Production host remains a GitHub secret; the stable non-secret deployment
+      # settings are committed here to keep GitHub repo settings minimal.
       PRODUCTION_SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
-      PRODUCTION_SSH_USER: ${{ vars.PRODUCTION_SSH_USER }}
-      PRODUCTION_UPLOAD_DIR: ${{ vars.PRODUCTION_UPLOAD_DIR }}
-      PRODUCTION_INSTALL_DIR: ${{ vars.PRODUCTION_INSTALL_DIR }}
-      PRODUCTION_SERVICE_NAME: ${{ vars.PRODUCTION_SERVICE_NAME }}
-      PRODUCTION_ENV_FILE: ${{ vars.PRODUCTION_ENV_FILE }}
+      PRODUCTION_SSH_USER: gs-api-deploy
+      PRODUCTION_UPLOAD_DIR: /var/www/globalsymbols-api/uploads
+      PRODUCTION_INSTALL_DIR: /var/www/globalsymbols-api
+      PRODUCTION_SERVICE_NAME: globalsymbols-api.service
+      PRODUCTION_ENV_FILE: /var/www/globalsymbols-api/current/.env
 
-      # Shared (values from Task 1)
+      # Shared secrets
       DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
       DEPLOY_SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
 
@@ -45,7 +47,7 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Fail fast on missing required secrets/variables
+      - name: Fail fast on missing required secrets
         shell: bash
         run: |
           set -euo pipefail
@@ -65,19 +67,7 @@ jobs:
 
           # Pre-production
           require_non_empty "PREPRODUCTION_SSH_HOST"
-          require_non_empty "PREPRODUCTION_SSH_USER"
-          require_non_empty "PREPRODUCTION_UPLOAD_DIR"
-          require_non_empty "PREPRODUCTION_INSTALL_DIR"
-          require_non_empty "PREPRODUCTION_SERVICE_NAME"
-          require_non_empty "PREPRODUCTION_ENV_FILE"
-
-          # Production
           require_non_empty "PRODUCTION_SSH_HOST"
-          require_non_empty "PRODUCTION_SSH_USER"
-          require_non_empty "PRODUCTION_UPLOAD_DIR"
-          require_non_empty "PRODUCTION_INSTALL_DIR"
-          require_non_empty "PRODUCTION_SERVICE_NAME"
-          require_non_empty "PRODUCTION_ENV_FILE"
 
       - name: Minimal build verification (tests)
         shell: bash

@@ -11,19 +11,19 @@ the release artifacts to the configured upload directory.
 Usage:
   ./install_release.sh --environment {pre-production|production} --release-id <RELEASE_ID>
 
-Required environment variables (depending on --environment):
+Optional environment variable overrides (depending on --environment):
 
   pre-production:
-    PREPRODUCTION_UPLOAD_DIR
-    PREPRODUCTION_INSTALL_DIR
-    PREPRODUCTION_SERVICE_NAME
-    PREPRODUCTION_ENV_FILE
+    PREPRODUCTION_UPLOAD_DIR    default: /var/www/globalsymbols-api/uploads
+    PREPRODUCTION_INSTALL_DIR   default: /var/www/globalsymbols-api
+    PREPRODUCTION_SERVICE_NAME  default: globalsymbols-api.service
+    PREPRODUCTION_ENV_FILE      default: /var/www/globalsymbols-api/current/.env
 
   production:
-    PRODUCTION_UPLOAD_DIR
-    PRODUCTION_INSTALL_DIR
-    PRODUCTION_SERVICE_NAME
-    PRODUCTION_ENV_FILE
+    PRODUCTION_UPLOAD_DIR       default: /var/www/globalsymbols-api/uploads
+    PRODUCTION_INSTALL_DIR      default: /var/www/globalsymbols-api
+    PRODUCTION_SERVICE_NAME     default: globalsymbols-api.service
+    PRODUCTION_ENV_FILE         default: /var/www/globalsymbols-api/current/.env
 
 Notes:
   - RELEASE_ID must match the directory name created by CI on the server.
@@ -86,24 +86,16 @@ ENV_FILE=""
 
 case "${ENVIRONMENT}" in
   pre-production)
-    : "${PREPRODUCTION_UPLOAD_DIR:?PREPRODUCTION_UPLOAD_DIR is required}"
-    : "${PREPRODUCTION_INSTALL_DIR:?PREPRODUCTION_INSTALL_DIR is required}"
-    : "${PREPRODUCTION_SERVICE_NAME:?PREPRODUCTION_SERVICE_NAME is required}"
-    : "${PREPRODUCTION_ENV_FILE:?PREPRODUCTION_ENV_FILE is required}"
-    TARGET_UPLOAD_DIR="${PREPRODUCTION_UPLOAD_DIR}"
-    FINAL_INSTALL_DIR="${PREPRODUCTION_INSTALL_DIR}"
-    SERVICE_NAME="${PREPRODUCTION_SERVICE_NAME}"
-    ENV_FILE="${PREPRODUCTION_ENV_FILE}"
+    TARGET_UPLOAD_DIR="${PREPRODUCTION_UPLOAD_DIR:-/var/www/globalsymbols-api/uploads}"
+    FINAL_INSTALL_DIR="${PREPRODUCTION_INSTALL_DIR:-/var/www/globalsymbols-api}"
+    SERVICE_NAME="${PREPRODUCTION_SERVICE_NAME:-globalsymbols-api.service}"
+    ENV_FILE="${PREPRODUCTION_ENV_FILE:-/var/www/globalsymbols-api/current/.env}"
     ;;
   production)
-    : "${PRODUCTION_UPLOAD_DIR:?PRODUCTION_UPLOAD_DIR is required}"
-    : "${PRODUCTION_INSTALL_DIR:?PRODUCTION_INSTALL_DIR is required}"
-    : "${PRODUCTION_SERVICE_NAME:?PRODUCTION_SERVICE_NAME is required}"
-    : "${PRODUCTION_ENV_FILE:?PRODUCTION_ENV_FILE is required}"
-    TARGET_UPLOAD_DIR="${PRODUCTION_UPLOAD_DIR}"
-    FINAL_INSTALL_DIR="${PRODUCTION_INSTALL_DIR}"
-    SERVICE_NAME="${PRODUCTION_SERVICE_NAME}"
-    ENV_FILE="${PRODUCTION_ENV_FILE}"
+    TARGET_UPLOAD_DIR="${PRODUCTION_UPLOAD_DIR:-/var/www/globalsymbols-api/uploads}"
+    FINAL_INSTALL_DIR="${PRODUCTION_INSTALL_DIR:-/var/www/globalsymbols-api}"
+    SERVICE_NAME="${PRODUCTION_SERVICE_NAME:-globalsymbols-api.service}"
+    ENV_FILE="${PRODUCTION_ENV_FILE:-/var/www/globalsymbols-api/current/.env}"
     ;;
   *)
     echo "Invalid --environment: ${ENVIRONMENT}. Expected pre-production or production." >&2
