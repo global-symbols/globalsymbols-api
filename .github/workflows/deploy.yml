@@ -22,6 +22,7 @@ jobs:
       PREPRODUCTION_INSTALL_DIR: /var/www/globalsymbols-api
       PREPRODUCTION_SERVICE_NAME: globalsymbols-api.service
       PREPRODUCTION_ENV_FILE: /var/www/globalsymbols-api/current/.env
+      PREPRODUCTION_DEPLOY_ENABLED: ${{ vars.PREPRODUCTION_DEPLOY_ENABLED }}
 
       # Production host remains a GitHub secret; the stable non-secret deployment
       # settings are committed here to keep GitHub repo settings minimal.
@@ -31,6 +32,7 @@ jobs:
       PRODUCTION_INSTALL_DIR: /var/www/globalsymbols-api
       PRODUCTION_SERVICE_NAME: globalsymbols-api.service
       PRODUCTION_ENV_FILE: /var/www/globalsymbols-api/current/.env
+      PRODUCTION_DEPLOY_ENABLED: ${{ vars.PRODUCTION_DEPLOY_ENABLED }}
 
       # Shared secrets
       DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
@@ -65,9 +67,30 @@ jobs:
           require_non_empty "DEPLOY_SSH_PRIVATE_KEY"
           require_non_empty "DEPLOY_SSH_KNOWN_HOSTS"
 
-          # Pre-production
-          require_non_empty "PREPRODUCTION_SSH_HOST"
-          require_non_empty "PRODUCTION_SSH_HOST"
+          if [[ "${PREPRODUCTION_DEPLOY_ENABLED:-true}" != "false" ]]; then
+            require_non_empty "PREPRODUCTION_SSH_HOST"
+          fi
+
+          if [[ "${PRODUCTION_DEPLOY_ENABLED:-true}" != "false" ]]; then
+            require_non_empty "PRODUCTION_SSH_HOST"
+          fi
+
+      - name: Show selected deployment targets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${PREPRODUCTION_DEPLOY_ENABLED:-true}" == "false" ]]; then
+            echo "Pre-production upload: disabled"
+          else
+            echo "Pre-production upload: enabled"
+          fi
+
+          if [[ "${PRODUCTION_DEPLOY_ENABLED:-true}" == "false" ]]; then
+            echo "Production upload: disabled"
+          else
+            echo "Production upload: enabled"
+          fi
 
       - name: Minimal build verification (tests)
         shell: bash
@@ -114,6 +137,7 @@ jobs:
           date -u +"%Y-%m-%dT%H:%M:%SZ" > "package/${RELEASE_ID}/metadata/built_at_utc.txt"
 
       - name: Upload to pre-production (CI copy only)
+        if: ${{ vars.PREPRODUCTION_DEPLOY_ENABLED != 'false' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -139,6 +163,7 @@ jobs:
           echo "Pre-production artifact copied to: ${target_dir}/"
 
       - name: Upload to production (CI copy only)
+        if: ${{ vars.PRODUCTION_DEPLOY_ENABLED != 'false' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -167,9 +192,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "Pre-production upload dir for this release:"
-          echo "${PREPRODUCTION_UPLOAD_DIR%/}/${RELEASE_ID}/"
+
+          if [[ "${PREPRODUCTION_DEPLOY_ENABLED:-true}" == "false" ]]; then
+            echo "Pre-production upload skipped."
+          else
+            echo "Pre-production upload dir for this release:"
+            echo "${PREPRODUCTION_UPLOAD_DIR%/}/${RELEASE_ID}/"
+          fi
+
           echo
-          echo "Production upload dir for this release:"
-          echo "${PRODUCTION_UPLOAD_DIR%/}/${RELEASE_ID}/"
+
+          if [[ "${PRODUCTION_DEPLOY_ENABLED:-true}" == "false" ]]; then
+            echo "Production upload skipped."
+          else
+            echo "Production upload dir for this release:"
+            echo "${PRODUCTION_UPLOAD_DIR%/}/${RELEASE_ID}/"
+          fi
 
