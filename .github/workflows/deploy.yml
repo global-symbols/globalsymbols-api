@@ -12,8 +12,6 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      RELEASE_ID: ${{ github.sha }}
-
       # Pre-production host remains a GitHub secret; the stable non-secret deployment
       # settings are committed here to keep GitHub repo settings minimal.
       PREPRODUCTION_SSH_HOST: ${{ secrets.PREPRODUCTION_SSH_HOST }}
@@ -91,6 +89,18 @@ jobs:
           else
             echo "Production upload: enabled"
           fi
+
+      - name: Compute release identifier
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          release_timestamp="$(date -u +"%Y%m%d-%H%M%S")"
+          short_sha="${GITHUB_SHA:0:7}"
+          release_id="${release_timestamp}-${short_sha}"
+
+          echo "RELEASE_ID=${release_id}" >> "${GITHUB_ENV}"
+          echo "Using RELEASE_ID=${release_id}"
 
       - name: Minimal build verification (tests)
         shell: bash
