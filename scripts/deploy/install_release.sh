@@ -17,13 +17,13 @@ Optional environment variable overrides (depending on --environment):
     PREPRODUCTION_UPLOAD_DIR    default: /var/www/globalsymbols-api/uploads
     PREPRODUCTION_INSTALL_DIR   default: /var/www/globalsymbols-api
     PREPRODUCTION_SERVICE_NAME  default: globalsymbols-api.service
-    PREPRODUCTION_ENV_FILE      default: /var/www/globalsymbols-api/current/.env
+    PREPRODUCTION_ENV_FILE      default: /var/www/globalsymbols-api/.env
 
   production:
     PRODUCTION_UPLOAD_DIR       default: /var/www/globalsymbols-api/uploads
     PRODUCTION_INSTALL_DIR      default: /var/www/globalsymbols-api
     PRODUCTION_SERVICE_NAME     default: globalsymbols-api.service
-    PRODUCTION_ENV_FILE         default: /var/www/globalsymbols-api/current/.env
+    PRODUCTION_ENV_FILE         default: /var/www/globalsymbols-api/.env
 
   shared:
     UPLOAD_RELEASES_TO_KEEP     default: 5
@@ -131,13 +131,13 @@ case "${ENVIRONMENT}" in
     TARGET_UPLOAD_DIR="${PREPRODUCTION_UPLOAD_DIR:-/var/www/globalsymbols-api/uploads}"
     FINAL_INSTALL_DIR="${PREPRODUCTION_INSTALL_DIR:-/var/www/globalsymbols-api}"
     SERVICE_NAME="${PREPRODUCTION_SERVICE_NAME:-globalsymbols-api.service}"
-    ENV_FILE="${PREPRODUCTION_ENV_FILE:-/var/www/globalsymbols-api/current/.env}"
+    ENV_FILE="${PREPRODUCTION_ENV_FILE:-/var/www/globalsymbols-api/.env}"
     ;;
   production)
     TARGET_UPLOAD_DIR="${PRODUCTION_UPLOAD_DIR:-/var/www/globalsymbols-api/uploads}"
     FINAL_INSTALL_DIR="${PRODUCTION_INSTALL_DIR:-/var/www/globalsymbols-api}"
     SERVICE_NAME="${PRODUCTION_SERVICE_NAME:-globalsymbols-api.service}"
-    ENV_FILE="${PRODUCTION_ENV_FILE:-/var/www/globalsymbols-api/current/.env}"
+    ENV_FILE="${PRODUCTION_ENV_FILE:-/var/www/globalsymbols-api/.env}"
     ;;
   *)
     echo "Invalid --environment: ${ENVIRONMENT}. Expected pre-production or production." >&2

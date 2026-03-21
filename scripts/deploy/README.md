@@ -30,7 +30,7 @@ Expected contents:
 
 1. Run on the target server (either `pre-production` or `production`).
 2. Ensure the runtime environment file exists *outside* the release directory:
-   - default path: `/var/www/globalsymbols-api/current/.env`
+   - default path: `/var/www/globalsymbols-api/.env`
 3. Ensure the service is managed by systemd and can be restarted:
    - default service: `globalsymbols-api.service`
 4. Ensure you have permission to restart the service (typically via `sudo`).
@@ -61,14 +61,14 @@ only need to set these environment variables if a server differs from the defaul
 - `PREPRODUCTION_UPLOAD_DIR` default: `/var/www/globalsymbols-api/uploads`
 - `PREPRODUCTION_INSTALL_DIR` default: `/var/www/globalsymbols-api`
 - `PREPRODUCTION_SERVICE_NAME` default: `globalsymbols-api.service`
-- `PREPRODUCTION_ENV_FILE` default: `/var/www/globalsymbols-api/current/.env`
+- `PREPRODUCTION_ENV_FILE` default: `/var/www/globalsymbols-api/.env`
 
 ### For `production`
 
 - `PRODUCTION_UPLOAD_DIR` default: `/var/www/globalsymbols-api/uploads`
 - `PRODUCTION_INSTALL_DIR` default: `/var/www/globalsymbols-api`
 - `PRODUCTION_SERVICE_NAME` default: `globalsymbols-api.service`
-- `PRODUCTION_ENV_FILE` default: `/var/www/globalsymbols-api/current/.env`
+- `PRODUCTION_ENV_FILE` default: `/var/www/globalsymbols-api/.env`
 
 ## What the Script Does
 
