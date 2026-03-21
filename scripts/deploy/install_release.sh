@@ -25,6 +25,9 @@ Optional environment variable overrides (depending on --environment):
     PRODUCTION_SERVICE_NAME     default: globalsymbols-api.service
     PRODUCTION_ENV_FILE         default: /var/www/globalsymbols-api/current/.env
 
+  shared:
+    UPLOAD_RELEASES_TO_KEEP     default: 5
+
 Notes:
   - RELEASE_ID must match the directory name created by CI on the server.
   - The runtime environment file must already exist and live outside the release directory.
@@ -38,6 +41,44 @@ EOF
 
 log() {
   echo "[$(date -u +"%Y-%m-%dT%H:%M:%SZ")] $*"
+}
+
+cleanup_old_uploads() {
+  local upload_dir="$1"
+  local keep_count="$2"
+
+  if [[ ! "${keep_count}" =~ ^[0-9]+$ ]]; then
+    echo "UPLOAD_RELEASES_TO_KEEP must be a non-negative integer, got: ${keep_count}" >&2
+    exit 2
+  fi
+
+  if [[ ! -d "${upload_dir}" ]]; then
+    log "Upload cleanup skipped: upload directory not found (${upload_dir})"
+    return
+  fi
+
+  local -a upload_dirs=()
+  mapfile -t upload_dirs < <(find "${upload_dir}" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' | sort -rn | awk '{ $1=""; sub(/^ /, ""); print }')
+
+  if (( ${#upload_dirs[@]} <= keep_count )); then
+    log "Upload cleanup skipped: ${#upload_dirs[@]} staged release(s), retention is ${keep_count}"
+    return
+  fi
+
+  local index=0
+  local removed=0
+  for dir in "${upload_dirs[@]}"; do
+    (( index += 1 ))
+    if (( index <= keep_count )); then
+      continue
+    fi
+
+    rm -rf "${dir}"
+    (( removed += 1 ))
+    log "Removed old uploaded release: ${dir}"
+  done
+
+  log "Upload cleanup complete. Retained newest ${keep_count} staged release(s); removed ${removed}."
 }
 
 SUDO_BIN="${SUDO_BIN:-}"
@@ -83,6 +124,7 @@ TARGET_UPLOAD_DIR=""
 FINAL_INSTALL_DIR=""
 SERVICE_NAME=""
 ENV_FILE=""
+UPLOAD_RELEASES_TO_KEEP="${UPLOAD_RELEASES_TO_KEEP:-5}"
 
 case "${ENVIRONMENT}" in
   pre-production)
@@ -154,6 +196,8 @@ fi
 
 ${SUDO_BIN} systemctl restart "${SERVICE_NAME}"
 ${SUDO_BIN} systemctl is-active --quiet "${SERVICE_NAME}"
+
+cleanup_old_uploads "${TARGET_UPLOAD_DIR}" "${UPLOAD_RELEASES_TO_KEEP}"
 
 log "Deployment complete. Current -> ${CURRENT_LINK}"
 

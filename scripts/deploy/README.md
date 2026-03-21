@@ -49,6 +49,13 @@ Expected contents:
 The install script now has built-in defaults for the stable deployment values below. You
 only need to set these environment variables if a server differs from the defaults.
 
+### Shared override
+
+- `UPLOAD_RELEASES_TO_KEEP` default: `5`
+  - After a successful install and restart, the script removes older directories from
+    `/var/www/globalsymbols-api/uploads` and keeps only the newest staged uploads.
+  - Set to `0` if you want the upload staging directory emptied after each successful deploy.
+
 ### For `pre-production`
 
 - `PREPRODUCTION_UPLOAD_DIR` default: `/var/www/globalsymbols-api/uploads`
@@ -73,6 +80,8 @@ Given a release directory:
   - `<FINAL_INSTALL_DIR>/current` -> `releases/<RELEASE_ID>`
 - Restarts the running service via:
   - `systemctl restart <SERVICE_NAME>`
+- Cleans up old upload directories after a successful restart, keeping only the newest
+  staged uploads according to `UPLOAD_RELEASES_TO_KEEP`
 
 ## Known Unknowns / To Be Supplied
 
