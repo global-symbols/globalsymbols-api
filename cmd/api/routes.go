@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
@@ -12,10 +13,13 @@ import (
 	"gs-api/internal/auth"
 	"gs-api/internal/config"
 	"gs-api/internal/handlers"
+	"gs-api/internal/ratelimit"
 )
 
 // registerRoutes wires Huma as the runtime owner and exposes public docs/spec.
 func registerRoutes(r *chi.Mux, sqlDB *sql.DB, cfg *config.Config) {
+	apiKeyLimiter := ratelimit.NewFixedWindowLimiter(cfg.RateLimitPerMinute, time.Minute)
+
 	r.Route("/api/v1", func(r chi.Router) {
 		// /api/v1/user is proxied to Rails; OpenAPI entry is merged in registerUserOpenAPI.
 		r.Handle("/user", handlers.UserProxy(cfg.RailsBaseURL))
@@ -61,16 +65,17 @@ func registerRoutes(r *chi.Mux, sqlDB *sql.DB, cfg *config.Config) {
 				return
 			}
 
-			// Reuse existing Chi API key middleware for everything else.
-			mw := auth.APIKeyMiddleware(sqlDB)
-			mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Reuse existing Chi API key middleware, then apply per-key throttling.
+			authMW := auth.APIKeyMiddleware(sqlDB)
+			rateLimitMW := ratelimit.APIKeyMiddleware(apiKeyLimiter)
+			authMW(rateLimitMW(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if metadata, ok := auth.MetadataFromContext(r.Context()); ok {
 					next(huma.WithValue(hctx, auth.MetadataContextKey(), metadata))
 					return
 				}
 
 				next(hctx)
-			})).ServeHTTP(res, req)
+			}))).ServeHTTP(res, req)
 		})
 
 		// Huma operations now own the runtime for all documented endpoints.

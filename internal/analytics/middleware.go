@@ -19,9 +19,13 @@ type Enqueuer interface {
 	Enqueue(Record) bool
 }
 
-func Middleware(enqueuer Enqueuer) func(http.Handler) http.Handler {
+type Observer interface {
+	Observe(Record)
+}
+
+func Middleware(enqueuer Enqueuer, observers ...Observer) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
-		if enqueuer == nil {
+		if enqueuer == nil && len(observers) == 0 {
 			return next
 		}
 
@@ -60,7 +64,14 @@ func Middleware(enqueuer Enqueuer) func(http.Handler) http.Handler {
 				record.UserID = metadata.UserID
 			}
 
-			enqueuer.Enqueue(record)
+			if enqueuer != nil {
+				enqueuer.Enqueue(record)
+			}
+			for _, observer := range observers {
+				if observer != nil {
+					observer.Observe(record)
+				}
+			}
 		})
 	}
 }

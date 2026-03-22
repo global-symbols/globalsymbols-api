@@ -19,6 +19,14 @@ func (s *stubEnqueuer) Enqueue(record Record) bool {
 	return true
 }
 
+type stubObserver struct {
+	records []Record
+}
+
+func (s *stubObserver) Observe(record Record) {
+	s.records = append(s.records, record)
+}
+
 func TestMiddlewareCapturesAnalyticsRecord(t *testing.T) {
 	stub := &stubEnqueuer{}
 	handler := Middleware(stub)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -137,5 +145,26 @@ func TestMiddlewareDoesNotStoreSuccessfulResponseBodiesAsErrors(t *testing.T) {
 	}
 	if len(body) != 1 || body[0]["text"] != "hello" {
 		t.Fatalf("expected successful response body to remain intact, got %#v", body)
+	}
+}
+
+func TestMiddlewareCanNotifyObserversWithoutEnqueuer(t *testing.T) {
+	observer := &stubObserver{}
+	handler := Middleware(nil, observer)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		httpx.Error(w, http.StatusTooManyRequests, "too many requests")
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/languages/active", nil)
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected status %d, got %d", http.StatusTooManyRequests, recorder.Code)
+	}
+	if len(observer.records) != 1 {
+		t.Fatalf("expected observer to receive 1 record, got %d", len(observer.records))
+	}
+	if !observer.records[0].IsRateLimitBreach {
+		t.Fatal("expected observer record to be marked as a rate-limit breach")
 	}
 }

@@ -24,6 +24,33 @@ This uses the root `docker-compose.yml` and builds the Go API image using the ro
 - Exposes the Go API on `http://localhost:8080`
 - Points at the Rails API and image server on `http://host.docker.internal:3000`
 
+### Rate limiting
+
+Authenticated data endpoints under `/api/v1` are rate-limited in memory per API key.
+
+- `RATE_LIMIT_PER_MINUTE` controls the per-key allowance and defaults to `100`
+- a value less than or equal to `0` disables throttling
+- when the limit is exceeded, the API returns `429 Too Many Requests`
+- the response includes `Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `X-RateLimit-Reset`
+
+This is a temporary throttle, not a key revocation. The limiter uses a fixed 1-minute in-memory window per API key. Once a key has used its full quota inside the current minute-long window, additional requests are blocked until that window ends. After the window resets, the key can make requests again automatically with no database update required.
+
+Because the limiter is process-local, its counters are also reset if the Go API process restarts.
+
+### Suspicious traffic alerts
+
+The API also watches completed requests for suspicious patterns and can raise Teams alerts without blocking traffic.
+
+- `SUSPICIOUS_RATE_LIMIT_BREACH_THRESHOLD` default: `20`
+- `SUSPICIOUS_RATE_LIMIT_BREACH_WINDOW_MS` default: `120000` (2 minutes)
+- `SUSPICIOUS_UNAUTHORIZED_IP_THRESHOLD` default: `50`
+- `SUSPICIOUS_UNAUTHORIZED_IP_WINDOW_MS` default: `300000` (5 minutes)
+- `SUSPICIOUS_IP_REQUEST_THRESHOLD` default: `300`
+- `SUSPICIOUS_IP_REQUEST_WINDOW_MS` default: `60000` (1 minute)
+- `SUSPICIOUS_ALERT_COOLDOWN_MS` default: `1800000` (30 minutes)
+
+These alerts use `TEAMS_WEBHOOK_URL`. The current detector is in-memory and process-local, so counters and alert cooldown state are cleared if the Go API process restarts.
+
 ### Test suites
 
 There are two main Go test suites under `tests/`:

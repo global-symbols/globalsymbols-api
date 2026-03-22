@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"gs-api/internal/alerting"
 	"gs-api/internal/analytics"
 	"gs-api/internal/config"
 	"gs-api/internal/db"
@@ -28,10 +29,11 @@ func main() {
 	defer sqlDB.Close()
 
 	analyticsSender := analytics.NewSender(cfg.Analytics)
+	suspiciousTrafficDetector := alerting.NewDetector(cfg.Alerts)
 
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP)
-	r.Use(analytics.Middleware(analyticsSender))
+	r.Use(analytics.Middleware(analyticsSender, suspiciousTrafficDetector))
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
@@ -69,6 +71,9 @@ func main() {
 			if shutdownErr := analyticsSender.Shutdown(shutdownCtx); shutdownErr != nil {
 				log.Println("analytics shutdown error:", shutdownErr)
 			}
+			if shutdownErr := suspiciousTrafficDetector.Shutdown(shutdownCtx); shutdownErr != nil {
+				log.Println("suspicious traffic shutdown error:", shutdownErr)
+			}
 			os.Exit(1)
 		}
 	case <-shutdownSignals.Done():
@@ -85,5 +90,8 @@ func main() {
 	defer analyticsShutdownCancel()
 	if err := analyticsSender.Shutdown(analyticsShutdownCtx); err != nil {
 		log.Println("analytics shutdown error:", err)
+	}
+	if err := suspiciousTrafficDetector.Shutdown(analyticsShutdownCtx); err != nil {
+		log.Println("suspicious traffic shutdown error:", err)
 	}
 }

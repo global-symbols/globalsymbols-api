@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"net/http"
 	"strings"
-	"time"
 
 	"gs-api/internal/httpx"
 )
@@ -49,11 +48,6 @@ func APIKeyMiddleware(db *sql.DB) func(http.Handler) http.Handler {
 				httpx.Error(w, http.StatusInternalServerError, "Internal server error")
 				return
 			}
-
-			// Best-effort update of last_used_at (ignore errors).
-			go func() {
-				_, _ = db.Exec(`UPDATE api_keys SET last_used_at = ? WHERE id = ?`, time.Now().UTC(), metadata.APIKeyID)
-			}()
 
 			ctx := WithMetadata(r.Context(), metadata)
 			next.ServeHTTP(w, r.WithContext(ctx))
