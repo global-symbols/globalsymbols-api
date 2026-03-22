@@ -17,7 +17,7 @@ import (
 // registerRoutes wires Huma as the runtime owner and exposes public docs/spec.
 func registerRoutes(r *chi.Mux, sqlDB *sql.DB, cfg *config.Config) {
 	r.Route("/api/v1", func(r chi.Router) {
-		// /api/v1/user stays proxied to Rails and is not part of the OpenAPI docs.
+		// /api/v1/user is proxied to Rails; OpenAPI entry is merged in registerUserOpenAPI.
 		r.Handle("/user", handlers.UserProxy(cfg.RailsBaseURL))
 
 		// Huma API with Scalar docs, mounted directly under /api/v1 (no Chi auth).
@@ -38,6 +38,12 @@ func registerRoutes(r *chi.Mux, sqlDB *sql.DB, cfg *config.Config) {
 			Type: "apiKey",
 			In:   "header",
 			Name: "X-Api-Key",
+		}
+		securitySchemes["OAuth2User"] = &huma.SecurityScheme{
+			Type:         "http",
+			Scheme:       "bearer",
+			BearerFormat: "OAuth2",
+			Description:  "OAuth2 access token (e.g. Doorkeeper). Required scope: profile.",
 		}
 		humaCfg.Components.SecuritySchemes = securitySchemes
 		api := humachi.New(r, humaCfg)
@@ -69,5 +75,6 @@ func registerRoutes(r *chi.Mux, sqlDB *sql.DB, cfg *config.Config) {
 
 		// Huma operations now own the runtime for all documented endpoints.
 		registerHumaOperations(api, sqlDB, cfg)
+		registerUserOpenAPI(api, cfg)
 	})
 }
