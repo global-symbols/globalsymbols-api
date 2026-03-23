@@ -35,6 +35,7 @@ type Symbolset struct {
 	Status       string   `json:"status"`
 	Licence      Licence  `json:"licence"`
 	Featured     *int64   `json:"featured_level,omitempty"`
+	LogoURL      *string  `json:"logo_url,omitempty"`
 }
 
 type Picto struct {

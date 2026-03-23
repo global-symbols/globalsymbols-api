@@ -2,15 +2,35 @@ package db
 
 import (
 	"database/sql"
+	"fmt"
 	"strings"
 	"time"
 
 	"gs-api/internal/models"
 )
 
+func pictoImageURL(imageBaseURL, appEnv string, imageID int64, stored sql.NullString) string {
+	if !stored.Valid || strings.TrimSpace(stored.String) == "" || imageBaseURL == "" {
+		return ""
+	}
+	s := strings.TrimSpace(stored.String)
+	if strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://") {
+		return s
+	}
+	base := strings.TrimSuffix(imageBaseURL, "/")
+	rel := strings.TrimPrefix(s, "/")
+	if strings.HasPrefix(rel, "uploads/") {
+		return base + "/" + rel
+	}
+	if !strings.Contains(s, "/") && imageID > 0 && appEnv != "" {
+		return fmt.Sprintf("%s/uploads/%s/image/imagefile/%d/%s", base, appEnv, imageID, s)
+	}
+	return base + "/" + rel
+}
+
 // PictosList lists non-archived, visible pictos for a symbolset with pagination.
 // Returns total count and page of PictoSummary with authoritative labels.
-func PictosList(conn *sql.DB, symbolsetID int64, page, perPage int, imageBaseURL string) (items []models.PictoSummary, total int64, err error) {
+func PictosList(conn *sql.DB, symbolsetID int64, page, perPage int, imageBaseURL, appEnv string) (items []models.PictoSummary, total int64, err error) {
 	if perPage <= 0 || perPage > 100 {
 		perPage = 100
 	}
@@ -28,7 +48,7 @@ func PictosList(conn *sql.DB, symbolsetID int64, page, perPage int, imageBaseURL
 	}
 
 	rows, err := conn.Query(`
-		SELECT p.id, p.part_of_speech, i.imagefile
+		SELECT p.id, p.part_of_speech, i.id, i.imagefile
 		FROM pictos p
 		LEFT JOIN images i ON i.picto_id = p.id
 		WHERE p.symbolset_id = ? AND p.archived = 0 AND p.visibility = 0
@@ -44,13 +64,14 @@ func PictosList(conn *sql.DB, symbolsetID int64, page, perPage int, imageBaseURL
 	for rows.Next() {
 		var p models.PictoSummary
 		var pos int
+		var imageID sql.NullInt64
 		var imgFile sql.NullString
-		if err := rows.Scan(&p.ID, &pos, &imgFile); err != nil {
+		if err := rows.Scan(&p.ID, &pos, &imageID, &imgFile); err != nil {
 			return nil, 0, err
 		}
 		p.PartOfSpeech = PartOfSpeechFromInt(pos)
-		if imgFile.Valid && imgFile.String != "" {
-			p.ImageURL = strings.TrimSuffix(imageBaseURL, "/") + "/" + strings.TrimPrefix(imgFile.String, "/")
+		if imageID.Valid {
+			p.ImageURL = pictoImageURL(imageBaseURL, appEnv, imageID.Int64, imgFile)
 		}
 		p.NativeFormat = "png"
 		labels, err := pictoLabels(conn, p.ID)
@@ -92,7 +113,7 @@ func pictoLabels(conn *sql.DB, pictoID int64) ([]models.LabelSummary, error) {
 }
 
 // PictosDelta returns pictos updated after since, deletions (archived since), and last_updated.
-func PictosDelta(conn *sql.DB, symbolsetID int64, since time.Time, page, perPage int, imageBaseURL string) (items []models.PictoSummary, total int64, deletions []int64, lastUpdated *time.Time, err error) {
+func PictosDelta(conn *sql.DB, symbolsetID int64, since time.Time, page, perPage int, imageBaseURL, appEnv string) (items []models.PictoSummary, total int64, deletions []int64, lastUpdated *time.Time, err error) {
 	if perPage <= 0 || perPage > 100 {
 		perPage = 100
 	}
@@ -143,7 +164,7 @@ func PictosDelta(conn *sql.DB, symbolsetID int64, since time.Time, page, perPage
 
 	// Items: non-archived, visible pictos updated after since
 	rows, err := conn.Query(`
-		SELECT p.id, p.part_of_speech, i.imagefile
+		SELECT p.id, p.part_of_speech, i.id, i.imagefile
 		FROM pictos p
 		LEFT JOIN images i ON i.picto_id = p.id
 		WHERE p.symbolset_id = ? AND p.archived = 0 AND p.visibility = 0 AND p.updated_at > ?
@@ -159,13 +180,14 @@ func PictosDelta(conn *sql.DB, symbolsetID int64, since time.Time, page, perPage
 	for rows.Next() {
 		var p models.PictoSummary
 		var pos int
+		var imageID sql.NullInt64
 		var imgFile sql.NullString
-		if err := rows.Scan(&p.ID, &pos, &imgFile); err != nil {
+		if err := rows.Scan(&p.ID, &pos, &imageID, &imgFile); err != nil {
 			return nil, 0, nil, nil, err
 		}
 		p.PartOfSpeech = PartOfSpeechFromInt(pos)
-		if imgFile.Valid && imgFile.String != "" {
-			p.ImageURL = strings.TrimSuffix(imageBaseURL, "/") + "/" + strings.TrimPrefix(imgFile.String, "/")
+		if imageID.Valid {
+			p.ImageURL = pictoImageURL(imageBaseURL, appEnv, imageID.Int64, imgFile)
 		}
 		p.NativeFormat = "png"
 		labels, err := pictoLabels(conn, p.ID)

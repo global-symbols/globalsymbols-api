@@ -10,7 +10,7 @@ import (
 
 func Symbolsets(conn *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		list, err := db.ListPublished(conn)
+		list, err := db.ListPublished(conn, "", "")
 		if err != nil {
 			httpx.Error(w, http.StatusInternalServerError, "Internal server error")
 			return

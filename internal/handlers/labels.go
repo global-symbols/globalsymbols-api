@@ -49,7 +49,7 @@ func LabelsSearch(sqlDB *sql.DB, imageBaseURL string) http.HandlerFunc {
 			}
 		}
 
-		list, err := db.LabelsSearch(sqlDB, query, symbolsetID, language, languageISOFormat, limit, imageBaseURL)
+		list, err := db.LabelsSearch(sqlDB, query, symbolsetID, language, languageISOFormat, limit, imageBaseURL, "")
 		if err != nil {
 			httpx.Error(w, http.StatusInternalServerError, "Internal server error")
 			return

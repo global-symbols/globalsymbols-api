@@ -22,7 +22,7 @@ func registerHumaOperations(api huma.API, sqlDB *sql.DB, cfg *config.Config) {
 	registerLabelsSearch(api, sqlDB, cfg)
 	registerLabelByID(api, sqlDB, cfg)
 	registerLanguagesActive(api, sqlDB)
-	registerSymbolsets(api, sqlDB)
+	registerSymbolsets(api, sqlDB, cfg)
 	registerPictos(api, sqlDB, cfg)
 }
 
@@ -172,7 +172,7 @@ func registerLabelsSearch(api huma.API, sqlDB *sql.DB, cfg *config.Config) {
 			return nil, huma.Error400BadRequest("invalid language or language_iso_format", err)
 		}
 
-		list, err := db.LabelsSearch(sqlDB, input.Query, symbolsetID, language, languageISOFormat, limit, cfg.ImageBaseURL)
+		list, err := db.LabelsSearch(sqlDB, input.Query, symbolsetID, language, languageISOFormat, limit, cfg.ImageBaseURL, cfg.AppEnv)
 		if err != nil {
 			return nil, huma.Error500InternalServerError("Internal server error", err)
 		}
@@ -265,14 +265,14 @@ type symbolsetsOutput struct {
 	Body []models.Symbolset
 }
 
-func registerSymbolsets(api huma.API, sqlDB *sql.DB) {
+func registerSymbolsets(api huma.API, sqlDB *sql.DB, cfg *config.Config) {
 	huma.Register(api, withAPIKeyAuth(huma.Operation{
 		OperationID: "get-symbolsets",
 		Method:      http.MethodGet,
 		Path:        "/symbolsets",
 		Summary:     "List published symbolsets",
 	}), func(ctx context.Context, _ *struct{}) (*symbolsetsOutput, error) {
-		list, err := db.ListPublished(sqlDB)
+		list, err := db.ListPublished(sqlDB, cfg.ImageBaseURL, cfg.AppEnv)
 		if err != nil {
 			return nil, huma.Error500InternalServerError("Internal server error", err)
 		}
@@ -317,7 +317,7 @@ func registerPictos(api huma.API, sqlDB *sql.DB, cfg *config.Config) {
 		}
 
 		if input.Since == "" {
-			items, total, err := db.PictosList(sqlDB, symbolsetID, page, perPage, cfg.ImageBaseURL)
+			items, total, err := db.PictosList(sqlDB, symbolsetID, page, perPage, cfg.ImageBaseURL, cfg.AppEnv)
 			if err != nil {
 				return nil, huma.Error500InternalServerError("Internal server error", err)
 			}
@@ -338,7 +338,7 @@ func registerPictos(api huma.API, sqlDB *sql.DB, cfg *config.Config) {
 			return nil, huma.Error400BadRequest("Invalid 'since' timestamp. Use ISO 8601 format (e.g., 2026-01-01T00:00:00Z).", err)
 		}
 
-		items, total, deletions, lastUpdated, err := db.PictosDelta(sqlDB, symbolsetID, since, page, perPage, cfg.ImageBaseURL)
+		items, total, deletions, lastUpdated, err := db.PictosDelta(sqlDB, symbolsetID, since, page, perPage, cfg.ImageBaseURL, cfg.AppEnv)
 		if err != nil {
 			return nil, huma.Error500InternalServerError("Internal server error", err)
 		}

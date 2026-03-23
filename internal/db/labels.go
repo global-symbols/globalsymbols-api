@@ -8,13 +8,32 @@ import (
 	"gs-api/internal/models"
 )
 
+func imageURL(imageBaseURL, appEnv string, imageID int64, stored sql.NullString) string {
+	if !stored.Valid || strings.TrimSpace(stored.String) == "" || imageBaseURL == "" {
+		return ""
+	}
+	s := strings.TrimSpace(stored.String)
+	if strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://") {
+		return s
+	}
+	base := strings.TrimSuffix(imageBaseURL, "/")
+	rel := strings.TrimPrefix(s, "/")
+	if strings.HasPrefix(rel, "uploads/") {
+		return base + "/" + rel
+	}
+	if !strings.Contains(s, "/") && imageID > 0 && appEnv != "" {
+		return fmt.Sprintf("%s/uploads/%s/image/imagefile/%d/%s", base, appEnv, imageID, s)
+	}
+	return base + "/" + rel
+}
+
 // LabelsSearch returns authoritative labels matching the query (non-archived pictos, published symbolset, visibility everybody).
 // If symbolsetID > 0, restrict to that symbolset.
 // Order: exact, underscore-boundary variants, prefix, then by text.
 //
 // Note: Rails filters by languages.iso639_* rather than languages.id, and that can impact which rows
 // win when multiple labels have identical ORDER BY expressions under LIMIT.
-func LabelsSearch(conn *sql.DB, query string, symbolsetID int64, languageCode string, languageISOFormat string, limit int, imageBaseURL string) ([]models.Label, error) {
+func LabelsSearch(conn *sql.DB, query string, symbolsetID int64, languageCode string, languageISOFormat string, limit int, imageBaseURL, appEnv string) ([]models.Label, error) {
 	q := strings.TrimSpace(query)
 	if q == "" {
 		return []models.Label{}, nil
@@ -42,7 +61,7 @@ func LabelsSearch(conn *sql.DB, query string, symbolsetID int64, languageCode st
 
 	sqlQuery := `
 		SELECT l.id, l.text, l.text_diacritised, l.description, lang.iso639_3,
-		       p.id, p.symbolset_id, p.part_of_speech, i.imagefile, i.adaptable
+		       p.id, p.symbolset_id, p.part_of_speech, i.id, i.imagefile, i.adaptable
 		FROM labels l
 		JOIN sources s ON s.id = l.source_id AND s.authoritative = 1
 		JOIN languages lang ON lang.id = l.language_id
@@ -83,6 +102,7 @@ func LabelsSearch(conn *sql.DB, query string, symbolsetID int64, languageCode st
 		var lab models.Label
 		var textDiac, desc sql.NullString
 		var pos int
+		var imageID sql.NullInt64
 		var imgFile sql.NullString
 		var adapt sql.NullBool
 		if err := rows.Scan(
@@ -94,6 +114,7 @@ func LabelsSearch(conn *sql.DB, query string, symbolsetID int64, languageCode st
 			&lab.Picto.ID,
 			&lab.Picto.SymbolsetID,
 			&pos,
+			&imageID,
 			&imgFile,
 			&adapt,
 		); err != nil {
@@ -107,8 +128,8 @@ func LabelsSearch(conn *sql.DB, query string, symbolsetID int64, languageCode st
 			lab.Description = &desc.String
 		}
 		lab.Picto.PartOfSpeech = PartOfSpeechFromInt(pos)
-		if imgFile.Valid && imgFile.String != "" {
-			lab.Picto.ImageURL = strings.TrimSuffix(imageBaseURL, "/") + "/" + strings.TrimPrefix(imgFile.String, "/")
+		if imageID.Valid {
+			lab.Picto.ImageURL = imageURL(imageBaseURL, appEnv, imageID.Int64, imgFile)
 		}
 		lab.Picto.NativeFormat = "png"
 		if adapt.Valid {

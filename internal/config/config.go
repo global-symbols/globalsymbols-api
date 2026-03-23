@@ -13,6 +13,9 @@ type Config struct {
 	DBDSN        string
 	Port         string
 	ImageBaseURL string
+	// AppEnv matches Rails public/uploads segment (e.g. development, production). From APP_ENV.
+	// Used to build symbolset logo URLs: /uploads/{AppEnv}/symbolset/logo/{id}/{file}.
+	AppEnv string
 	RailsBaseURL string
 	RateLimitPerMinute int
 	Alerts       alerting.Config
@@ -24,6 +27,7 @@ func FromEnv() Config {
 		DBDSN:        getenv("DB_DSN", "gs-repo-dev:gs-repo-dev@tcp(localhost:3307)/gs-repo-dev?parseTime=true&charset=utf8mb4&loc=UTC"),
 		Port:         getenv("PORT", "8080"),
 		ImageBaseURL: getenv("API_IMAGE_BASE_URL", "http://localhost:3000"),
+		AppEnv:       getenv("APP_ENV", "development"),
 		RailsBaseURL: getenv("RAILS_API_BASE_URL", "http://localhost:3000"),
 		RateLimitPerMinute: getenvInt("RATE_LIMIT_PER_MINUTE", 100),
 		Alerts: alerting.Config{

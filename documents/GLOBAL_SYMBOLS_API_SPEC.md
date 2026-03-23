@@ -327,6 +327,7 @@ Updates the authenticated user. Only provided fields are updated.
 | `status` | string | One of: `published`, `draft`. |
 | `licence` | [Licence](#licence) | Licence. |
 | `featured_level` | integer \| null | Optional featured ordering. |
+| `logo_url` | string \| null | Full URL for the symbolset logo (CarrierWave path `…/uploads/{APP_ENV}/symbolset/logo/{id}/{file}`). Omitted when absent. |
 
 ---
 

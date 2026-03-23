@@ -39,7 +39,7 @@ func Pictos(sqlDB *sql.DB, imageBaseURL string) http.HandlerFunc {
 
 		sinceStr := r.URL.Query().Get("since")
 		if sinceStr == "" {
-			items, total, err := db.PictosList(sqlDB, symbolsetID, page, perPage, imageBaseURL)
+			items, total, err := db.PictosList(sqlDB, symbolsetID, page, perPage, imageBaseURL, "")
 			if err != nil {
 				httpx.Error(w, http.StatusInternalServerError, "Internal server error")
 				return
@@ -58,7 +58,7 @@ func Pictos(sqlDB *sql.DB, imageBaseURL string) http.HandlerFunc {
 			return
 		}
 
-		items, total, deletions, lastUpdated, err := db.PictosDelta(sqlDB, symbolsetID, since, page, perPage, imageBaseURL)
+		items, total, deletions, lastUpdated, err := db.PictosDelta(sqlDB, symbolsetID, since, page, perPage, imageBaseURL, "")
 		if err != nil {
 			httpx.Error(w, http.StatusInternalServerError, "Internal server error")
 			return
