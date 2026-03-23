@@ -12,6 +12,7 @@ import (
 	"gs-api/internal/config"
 	"gs-api/internal/db"
 	"gs-api/internal/models"
+	"gs-api/internal/previews"
 )
 
 // registerHumaOperations registers Huma-backed operations that will be included
@@ -129,10 +130,11 @@ type labelsSearchInput struct {
 	Language          string `query:"language" doc:"Optional language code to filter labels (default: eng)"`
 	LanguageISOFormat string `query:"language_iso_format" doc:"Language ISO format (default: 639-3)"`
 	Limit             int    `query:"limit" doc:"Maximum number of results to return (1-100, default 10)"`
+	IncludePreview    bool   `query:"include_preview" doc:"When true, include an inline 64x64 PNG preview_data_url for each picto"`
 }
 
 type labelsSearchOutput struct {
-	Body []models.Label
+	Body []models.LabelSearchResult
 }
 
 func registerLabelsSearch(api huma.API, sqlDB *sql.DB, cfg *config.Config) {
@@ -176,8 +178,37 @@ func registerLabelsSearch(api huma.API, sqlDB *sql.DB, cfg *config.Config) {
 		if err != nil {
 			return nil, huma.Error500InternalServerError("Internal server error", err)
 		}
-		return &labelsSearchOutput{Body: list}, nil
+		body := labelSearchResults(list)
+		if input.IncludePreview {
+			previewCtx, cancel := context.WithTimeout(ctx, previews.DefaultPictoPreviewTimeout)
+			defer cancel()
+			previews.PopulateLabelSearchPreviewDataURLs(previewCtx, body, previews.DefaultPictoPreviewSize, previews.DefaultPictoPreviewWorkers)
+		}
+		return &labelsSearchOutput{Body: body}, nil
 	})
+}
+
+func labelSearchResults(items []models.Label) []models.LabelSearchResult {
+	out := make([]models.LabelSearchResult, 0, len(items))
+	for _, item := range items {
+		out = append(out, models.LabelSearchResult{
+			ID:              item.ID,
+			Text:            item.Text,
+			TextDiacritised: item.TextDiacritised,
+			Description:     item.Description,
+			Language:        item.Language,
+			Picto: models.LabelSearchPicto{
+				ID:           item.Picto.ID,
+				SymbolsetID:  item.Picto.SymbolsetID,
+				PartOfSpeech: item.Picto.PartOfSpeech,
+				ImageURL:     item.Picto.ImageURL,
+				NativeFormat: item.Picto.NativeFormat,
+				Adaptable:    item.Picto.Adaptable,
+				Symbolset:    item.Picto.Symbolset,
+			},
+		})
+	}
+	return out
 }
 
 // labelByIDInput models the path parameter for label lookup.

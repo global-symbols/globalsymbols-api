@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 
 	"gs-api/internal/models"
@@ -309,7 +310,7 @@ func TestHappy_LabelsSearch(t *testing.T) {
 		t.Fatalf("expected 200, got %d body %s", code, string(body))
 	}
 
-	arr := decodeJSON[[]models.Label](t, body)
+	arr := decodeJSON[[]models.LabelSearchResult](t, body)
 	if len(arr) == 0 {
 		t.Fatalf("expected non-empty labels array")
 	}
@@ -332,5 +333,38 @@ func TestHappy_LabelsSearch(t *testing.T) {
 		if l.Picto.NativeFormat == "" {
 			t.Errorf("item %d: expected picto.native_format non-empty", i)
 		}
+		if l.Picto.PreviewDataURL != "" {
+			t.Errorf("item %d: expected picto.preview_data_url omitted by default", i)
+		}
+	}
+}
+
+func TestHappy_LabelsSearch_WithPreview(t *testing.T) {
+	skipIfNoEnv(t)
+	code, body := get(t, "/api/v1/labels/search?query=dog&language=eng&language_iso_format=639-3&limit=5&include_preview=true", true)
+	if code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body %s", code, string(body))
+	}
+
+	arr := decodeJSON[[]models.LabelSearchResult](t, body)
+	if len(arr) == 0 {
+		t.Fatalf("expected non-empty labels array")
+	}
+	previewCount := 0
+	for i, l := range arr {
+		if l.Picto.ImageURL == "" {
+			t.Errorf("item %d: expected picto.image_url non-empty", i)
+			continue
+		}
+		if l.Picto.PreviewDataURL == "" {
+			continue
+		}
+		previewCount++
+		if !strings.HasPrefix(l.Picto.PreviewDataURL, "data:image/png;base64,") {
+			t.Errorf("item %d: expected picto.preview_data_url to be a PNG data URL", i)
+		}
+	}
+	if previewCount == 0 {
+		t.Log("no previews were generated in the current environment; this is allowed because preview generation is best-effort")
 	}
 }

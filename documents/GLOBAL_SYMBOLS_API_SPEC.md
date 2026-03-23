@@ -129,6 +129,7 @@ Returns labels matching the query, each with its associated picto. Only authorit
 | `language` | string | No | — | ISO 639 language code (format per `language_iso_format`). Use Languages endpoint for valid values. |
 | `language_iso_format` | string | No | `639-3` | One of: `639-1`, `639-2b`, `639-2t`, `639-3`. |
 | `limit` | integer | No | 10 | Number of results. Allowed range: 1–100. |
+| `include_preview` | boolean | No | `false` | When `true`, include `picto.preview_data_url` as an inline 64x64 PNG data URL for each result when preview generation succeeds. |
 | `expand` | string | No | — | Space-separated list of field paths to expand (e.g. nested `picto.symbolset`). Coerced to array by splitting on whitespace. |
 
 **Defaults and examples:**
@@ -145,7 +146,9 @@ GET /v1/labels/search?query=dog&language=eng
 GET /v1/labels/search?query=dog&language=en&language_iso_format=639-1
 ```
 
-**Response:** `200 OK` — JSON array of [Label](#label) objects.
+**Response:** `200 OK` — JSON array of label-search objects. The shape matches [Label](#label), except that when `include_preview=true` the nested `picto` object may also include:
+
+- `preview_data_url` — string data URL in the form `data:image/png;base64,...`, containing a 64x64 PNG preview for the picto.
 
 **Search behavior (for parity):**
 

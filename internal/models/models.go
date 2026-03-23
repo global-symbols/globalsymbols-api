@@ -57,6 +57,28 @@ type Label struct {
 	Picto           Picto   `json:"picto"`
 }
 
+// LabelSearchResult is specific to GET /labels/search so search-only fields do
+// not affect other endpoints that embed the shared Picto type.
+type LabelSearchResult struct {
+	ID              int64            `json:"id"`
+	Text            string           `json:"text"`
+	TextDiacritised *string          `json:"text_diacritised,omitempty"`
+	Description     *string          `json:"description,omitempty"`
+	Language        string           `json:"language"`
+	Picto           LabelSearchPicto `json:"picto"`
+}
+
+type LabelSearchPicto struct {
+	ID             int64      `json:"id"`
+	SymbolsetID    int64      `json:"symbolset_id"`
+	PartOfSpeech   string     `json:"part_of_speech"`
+	ImageURL       string     `json:"image_url"`
+	NativeFormat   string     `json:"native_format"`
+	PreviewDataURL string     `json:"preview_data_url,omitempty"`
+	Adaptable      *bool      `json:"adaptable,omitempty"`
+	Symbolset      *Symbolset `json:"symbolset,omitempty"`
+}
+
 type Concept struct {
 	ID            int64           `json:"id"`
 	Subject       string          `json:"subject"`
