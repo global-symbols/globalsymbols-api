@@ -50,6 +50,10 @@ func registerConceptByID(api huma.API, sqlDB *sql.DB, cfg *config.Config) {
 		Method:      http.MethodGet,
 		Path:        "/concepts/{id}",
 		Summary:     "Get concept by ID",
+		Responses: apiKeyProtectedResponses(map[int]string{
+			http.StatusBadRequest: "Invalid concept ID.",
+			http.StatusNotFound:   "Concept not found.",
+		}),
 	}), func(ctx context.Context, input *conceptByIDInput) (*conceptByIDOutput, error) {
 		concept, err := db.ConceptByID(sqlDB, input.ID, cfg.ImageBaseURL)
 		if err != nil {
@@ -82,6 +86,10 @@ func registerConceptsSuggest(api huma.API, sqlDB *sql.DB, cfg *config.Config) {
 		Method:      http.MethodGet,
 		Path:        "/concepts/suggest",
 		Summary:     "Suggest concepts by query",
+		Description: "Limit handling note: Out-of-range limit values are normalized to 10 (not rejected). The request then follows the normal success path.",
+		Responses: apiKeyProtectedResponses(map[int]string{
+			http.StatusBadRequest: "Missing or invalid query parameters.",
+		}),
 	}), func(ctx context.Context, input *conceptsSuggestInput) (*conceptsSuggestOutput, error) {
 		if input.Query == "" {
 			return nil, newAPIErrorNoCode(http.StatusBadRequest, "query is missing")
@@ -143,6 +151,10 @@ func registerLabelsSearch(api huma.API, sqlDB *sql.DB, cfg *config.Config) {
 		Method:      http.MethodGet,
 		Path:        "/labels/search",
 		Summary:     "Search labels by query",
+		Description: "Limit handling note: Out-of-range limit values are normalized to 10 (not rejected). The request then follows the normal success path.",
+		Responses: apiKeyProtectedResponses(map[int]string{
+			http.StatusBadRequest: "Missing or invalid query parameters.",
+		}),
 	}), func(ctx context.Context, input *labelsSearchInput) (*labelsSearchOutput, error) {
 		if input.Query == "" {
 			return nil, newAPIErrorNoCode(http.StatusBadRequest, "query is missing")
@@ -226,6 +238,10 @@ func registerLabelByID(api huma.API, sqlDB *sql.DB, cfg *config.Config) {
 		Method:      http.MethodGet,
 		Path:        "/labels/{id}",
 		Summary:     "Get label by ID",
+		Responses: apiKeyProtectedResponses(map[int]string{
+			http.StatusBadRequest: "Invalid label ID.",
+			http.StatusNotFound:   "Label not found.",
+		}),
 	}), func(ctx context.Context, input *labelByIDInput) (*labelByIDOutput, error) {
 		lab, err := db.LabelByID(sqlDB, input.ID, cfg.ImageBaseURL)
 		if err != nil {
@@ -248,6 +264,7 @@ func registerLanguagesActive(api huma.API, sqlDB *sql.DB) {
 		Method:      http.MethodGet,
 		Path:        "/languages/active",
 		Summary:     "List active languages",
+		Responses:   apiKeyProtectedResponses(nil),
 	}), func(ctx context.Context, _ *struct{}) (*languagesActiveOutput, error) {
 		rows, err := sqlDB.Query(`
 			SELECT id, name, scope, category, iso639_1, iso639_2b, iso639_2t, iso639_3
@@ -302,6 +319,7 @@ func registerSymbolsets(api huma.API, sqlDB *sql.DB, cfg *config.Config) {
 		Method:      http.MethodGet,
 		Path:        "/symbolsets",
 		Summary:     "List published symbolsets",
+		Responses:   apiKeyProtectedResponses(nil),
 	}), func(ctx context.Context, _ *struct{}) (*symbolsetsOutput, error) {
 		list, err := db.ListPublished(sqlDB, cfg.ImageBaseURL, cfg.AppEnv)
 		if err != nil {
@@ -329,6 +347,10 @@ func registerPictos(api huma.API, sqlDB *sql.DB, cfg *config.Config) {
 		Method:      http.MethodGet,
 		Path:        "/pictos",
 		Summary:     "List pictos for a symbolset",
+		Responses: apiKeyProtectedResponses(map[int]string{
+			http.StatusBadRequest: "Missing or invalid query parameters.",
+			http.StatusNotFound:   "Symbolset not found or not published.",
+		}),
 	}), func(ctx context.Context, input *pictosInput) (*pictosOutput, error) {
 		if input.SymbolsetSlug == "" {
 			return nil, huma.Error400BadRequest("symbolset is required")

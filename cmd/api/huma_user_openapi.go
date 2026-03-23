@@ -41,8 +41,11 @@ func registerUserOpenAPI(api huma.API, cfg *config.Config) {
 						},
 					},
 				},
+				"400": {Description: "Bad request while preparing or forwarding the proxy request."},
 				"401": {Description: "No access token or invalid token."},
 				"403": {Description: "Token is valid but lacks the `profile` scope."},
+				"500": {Description: "Internal proxy configuration or request construction error."},
+				"502": {Description: "Upstream Rails API unavailable."},
 			},
 		},
 	}
