@@ -73,9 +73,21 @@ cleanup_old_uploads() {
       continue
     fi
 
-    rm -rf "${dir}"
-    (( removed += 1 ))
-    log "Removed old uploaded release: ${dir}"
+    if [[ -n "${SUDO_BIN}" ]]; then
+      if ${SUDO_BIN} rm -rf "${dir}"; then
+        (( removed += 1 ))
+        log "Removed old uploaded release: ${dir}"
+      else
+        log "Warning: failed to remove old uploaded release (permissions?): ${dir}"
+      fi
+    else
+      if rm -rf "${dir}"; then
+        (( removed += 1 ))
+        log "Removed old uploaded release: ${dir}"
+      else
+        log "Warning: failed to remove old uploaded release (permissions?): ${dir}"
+      fi
+    fi
   done
 
   log "Upload cleanup complete. Retained newest ${keep_count} staged release(s); removed ${removed}."
