@@ -52,6 +52,47 @@ func TestPNGDataURL_Returns64x64PNG(t *testing.T) {
 	}
 }
 
+func TestPNGDataURL_ConvertsSVGTo64x64PNG(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/svg+xml")
+		_, err := w.Write([]byte(`
+			<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 64">
+				<rect x="0" y="0" width="128" height="64" fill="#112233" />
+				<circle cx="32" cy="32" r="18" fill="#77cc44" />
+			</svg>`))
+		if err != nil {
+			t.Fatalf("write source svg: %v", err)
+		}
+	}))
+	defer server.Close()
+
+	dataURL, err := PNGDataURL(context.Background(), server.URL+"/icon.svg", 64)
+	if err != nil {
+		t.Fatalf("PNGDataURL error: %v", err)
+	}
+	if !strings.HasPrefix(dataURL, "data:image/png;base64,") {
+		t.Fatalf("unexpected prefix: %s", dataURL[:min(len(dataURL), 32)])
+	}
+
+	encoded := strings.TrimPrefix(dataURL, "data:image/png;base64,")
+	raw, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		t.Fatalf("decode data url: %v", err)
+	}
+	img, err := png.Decode(bytes.NewReader(raw))
+	if err != nil {
+		t.Fatalf("decode preview png: %v", err)
+	}
+	if img.Bounds().Dx() != 64 || img.Bounds().Dy() != 64 {
+		t.Fatalf("expected 64x64 preview, got %dx%d", img.Bounds().Dx(), img.Bounds().Dy())
+	}
+
+	center := color.RGBAModel.Convert(img.At(32, 32)).(color.RGBA)
+	if center.A == 0 {
+		t.Fatalf("expected rasterized SVG content at preview center")
+	}
+}
+
 func TestPopulateLabelSearchPreviewDataURLs_SoftFails(t *testing.T) {
 	items := []models.LabelSearchResult{
 		{

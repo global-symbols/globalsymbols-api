@@ -73,7 +73,7 @@ func PictosList(conn *sql.DB, symbolsetID int64, page, perPage int, imageBaseURL
 		if imageID.Valid {
 			p.ImageURL = pictoImageURL(imageBaseURL, appEnv, imageID.Int64, imgFile)
 		}
-		p.NativeFormat = "png"
+		p.NativeFormat = inferNativeFormatFromImageFile(imgFile)
 		labels, err := pictoLabels(conn, p.ID)
 		if err != nil {
 			return nil, 0, err
@@ -189,7 +189,7 @@ func PictosDelta(conn *sql.DB, symbolsetID int64, since time.Time, page, perPage
 		if imageID.Valid {
 			p.ImageURL = pictoImageURL(imageBaseURL, appEnv, imageID.Int64, imgFile)
 		}
-		p.NativeFormat = "png"
+		p.NativeFormat = inferNativeFormatFromImageFile(imgFile)
 		labels, err := pictoLabels(conn, p.ID)
 		if err != nil {
 			return nil, 0, nil, nil, err

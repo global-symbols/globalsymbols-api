@@ -174,7 +174,7 @@ func conceptPictos(conn *sql.DB, conceptID int64, symbolsetID int64, imageBaseUR
 		} else {
 			p.ImageURL = ""
 		}
-		p.NativeFormat = "png"
+		p.NativeFormat = inferNativeFormatFromImageFile(imgFile)
 		if adapt.Valid {
 			p.Adaptable = &adapt.Bool
 		}

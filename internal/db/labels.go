@@ -131,7 +131,7 @@ func LabelsSearch(conn *sql.DB, query string, symbolsetID int64, languageCode st
 		if imageID.Valid {
 			lab.Picto.ImageURL = imageURL(imageBaseURL, appEnv, imageID.Int64, imgFile)
 		}
-		lab.Picto.NativeFormat = "png"
+		lab.Picto.NativeFormat = inferNativeFormatFromImageFile(imgFile)
 		if adapt.Valid {
 			lab.Picto.Adaptable = &adapt.Bool
 		}
@@ -193,7 +193,7 @@ func LabelByID(conn *sql.DB, id int64, imageBaseURL string) (*models.Label, erro
 	if imgFile.Valid && imgFile.String != "" {
 		lab.Picto.ImageURL = strings.TrimSuffix(imageBaseURL, "/") + "/" + strings.TrimPrefix(imgFile.String, "/")
 	}
-	lab.Picto.NativeFormat = "png"
+	lab.Picto.NativeFormat = inferNativeFormatFromImageFile(imgFile)
 	if adapt.Valid {
 		lab.Picto.Adaptable = &adapt.Bool
 	}
