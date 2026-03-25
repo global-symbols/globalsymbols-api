@@ -37,12 +37,12 @@ func main() {
 	endpoints := []endpointConfig{
 		{
 			Name: "ConceptsSuggest",
-			Path: "/api/v1/concepts/suggest?query=computer&limit=5",
+			Path: "/api/v2/concepts/suggest?query=computer&limit=5",
 			Kind: "concepts",
 		},
 		{
 			Name: "LabelsSearch",
-			Path: "/api/v1/labels/search?query=hello&limit=5",
+			Path: "/api/v2/labels/search?query=hello&limit=5",
 			Kind: "labels",
 		},
 	}

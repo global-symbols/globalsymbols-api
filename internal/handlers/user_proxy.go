@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// UserProxy forwards /api/v1/user requests to the Rails API, which handles OAuth2.
+// UserProxy forwards /api/v2/user requests to the Rails API at /api/v1/user, which handles OAuth2.
 func UserProxy(railsBaseURL string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		target, err := url.Parse(railsBaseURL)

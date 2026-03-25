@@ -73,7 +73,7 @@ func TestAPIKeyMiddlewareReturns429WhenLimitExceeded(t *testing.T) {
 	}))
 
 	requestWithKey := func() *http.Request {
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/languages/active", nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/v2/languages/active", nil)
 		ctx := auth.WithMetadata(context.Background(), auth.Metadata{APIKeyID: 42, Email: "api@example.com"})
 		return req.WithContext(ctx)
 	}
@@ -108,7 +108,7 @@ func TestAPIKeyMiddlewareSkipsRequestsWithoutMetadata(t *testing.T) {
 	}))
 
 	recorder := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/docs", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v2/docs", nil)
 	handler.ServeHTTP(recorder, req)
 
 	if recorder.Code != http.StatusNoContent {

@@ -26,7 +26,7 @@ This uses the root `docker-compose.yml` and builds the Go API image using the ro
 
 ### Rate limiting
 
-Authenticated data endpoints under `/api/v1` are rate-limited in memory per API key.
+Authenticated data endpoints under `/api/v2` are rate-limited in memory per API key.
 
 - `RATE_LIMIT_PER_MINUTE` controls the per-key allowance and defaults to `100`
 - a value less than or equal to `0` disables throttling

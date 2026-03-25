@@ -37,7 +37,7 @@ func TestMiddlewareCapturesAnalyticsRecord(t *testing.T) {
 		httpx.Error(w, http.StatusTooManyRequests, "too many requests")
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/languages/active?query=dog&access_token=secret", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v2/languages/active?query=dog&access_token=secret", nil)
 	req.RemoteAddr = "203.0.113.9:12345"
 	req.Header.Set("User-Agent", "analytics-test")
 
@@ -87,7 +87,7 @@ func TestMiddlewareSnapshotsRequestMetadataBeforeHandlerMutation(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
 
-	req := httptest.NewRequest(http.MethodDelete, "/api/v1/pictos", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/api/v2/pictos", nil)
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, req)
 
@@ -103,8 +103,8 @@ func TestMiddlewareSnapshotsRequestMetadataBeforeHandlerMutation(t *testing.T) {
 	if record.Method != http.MethodDelete {
 		t.Fatalf("expected original method %q, got %q", http.MethodDelete, record.Method)
 	}
-	if record.Path != "/api/v1/pictos" {
-		t.Fatalf("expected original path %q, got %q", "/api/v1/pictos", record.Path)
+	if record.Path != "/api/v2/pictos" {
+		t.Fatalf("expected original path %q, got %q", "/api/v2/pictos", record.Path)
 	}
 	if record.StatusCode != http.StatusNoContent {
 		t.Fatalf("expected status code %d, got %d", http.StatusNoContent, record.StatusCode)
@@ -123,7 +123,7 @@ func TestMiddlewareDoesNotStoreSuccessfulResponseBodiesAsErrors(t *testing.T) {
 		httpx.JSON(w, http.StatusOK, payload)
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/labels/search?query=hello&limit=5", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v2/labels/search?query=hello&limit=5", nil)
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, req)
 
@@ -154,7 +154,7 @@ func TestMiddlewareCanNotifyObserversWithoutEnqueuer(t *testing.T) {
 		httpx.Error(w, http.StatusTooManyRequests, "too many requests")
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/languages/active", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v2/languages/active", nil)
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, req)
 

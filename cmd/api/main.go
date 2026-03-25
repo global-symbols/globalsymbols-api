@@ -38,9 +38,9 @@ func main() {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 
-	// Expose root-level OpenAPI spec for Scalar (/openapi.json -> /api/v1/openapi.json).
+	// Expose root-level OpenAPI spec for Scalar (/openapi.json -> /api/v2/openapi.json).
 	r.Get("/openapi.json", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/api/v1/openapi.json", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/api/v2/openapi.json", http.StatusTemporaryRedirect)
 	})
 
 	// Register traditional Chi routes and Huma-powered routes.

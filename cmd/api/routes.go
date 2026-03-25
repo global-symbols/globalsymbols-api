@@ -20,19 +20,19 @@ import (
 func registerRoutes(r *chi.Mux, sqlDB *sql.DB, cfg *config.Config) {
 	apiKeyLimiter := ratelimit.NewFixedWindowLimiter(cfg.RateLimitPerMinute, time.Minute)
 
-	r.Route("/api/v1", func(r chi.Router) {
-		// /api/v1/user is proxied to Rails; OpenAPI entry is merged in registerUserOpenAPI.
+	r.Route("/api/v2", func(r chi.Router) {
+		// /api/v2/user is proxied to Rails; OpenAPI entry is merged in registerUserOpenAPI.
 		r.Handle("/user", handlers.UserProxy(cfg.RailsBaseURL))
 
-		// Huma API with Scalar docs, mounted directly under /api/v1 (no Chi auth).
+		// Huma API with Scalar docs, mounted directly under /api/v2 (no Chi auth).
 		// Override Huma's default RFC 9457 problem details so Go matches the
 		// Rails/spec error envelope across all endpoints.
 		configureHumaErrors()
 		humaCfg := huma.DefaultConfig("Global Symbols Go API", "1.0.0")
-		humaCfg.DocsPath = "/docs" // GET /api/v1/docs
+		humaCfg.DocsPath = "/docs" // GET /api/v2/docs
 		humaCfg.DocsRenderer = huma.DocsRendererScalar
 		// Ensure generated OpenAPI/Scalar requests use the correct base path.
-		humaCfg.Servers = []*huma.Server{{URL: "/api/v1"}}
+		humaCfg.Servers = []*huma.Server{{URL: "/api/v2"}}
 		securitySchemes := humaCfg.Components.SecuritySchemes
 		if securitySchemes == nil {
 			securitySchemes = map[string]*huma.SecurityScheme{}
@@ -58,9 +58,9 @@ func registerRoutes(r *chi.Mux, sqlDB *sql.DB, cfg *config.Config) {
 			path := req.URL.Path
 
 			// Allow docs + OpenAPI/spec endpoints without API key.
-			if strings.HasPrefix(path, "/api/v1/docs") ||
-				strings.HasPrefix(path, "/api/v1/openapi") ||
-				strings.HasPrefix(path, "/api/v1/schemas") {
+			if strings.HasPrefix(path, "/api/v2/docs") ||
+				strings.HasPrefix(path, "/api/v2/openapi") ||
+				strings.HasPrefix(path, "/api/v2/schemas") {
 				next(hctx)
 				return
 			}

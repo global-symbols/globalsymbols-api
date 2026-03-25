@@ -99,7 +99,7 @@ func assertSameErrorResponse(t *testing.T, label string, railsBody, goBody []byt
 
 func TestParity_LanguagesActive(t *testing.T) {
 	skipIfNoParityEnv(t)
-	path := "/api/v1/languages/active"
+	path := "/api/v2/languages/active"
 	railsCode, railsBody := get(t, railsBase, path)
 	goCode, goBody := get(t, goBase, path)
 	if railsCode != goCode {
@@ -131,7 +131,7 @@ func TestParity_LanguagesActive(t *testing.T) {
 
 func TestParity_Symbolsets(t *testing.T) {
 	skipIfNoParityEnv(t)
-	path := "/api/v1/symbolsets"
+	path := "/api/v2/symbolsets"
 	railsCode, railsBody := get(t, railsBase, path)
 	goCode, goBody := get(t, goBase, path)
 	if railsCode != goCode {
@@ -163,7 +163,7 @@ func TestParity_Symbolsets(t *testing.T) {
 
 func TestParity_ConceptsSuggest(t *testing.T) {
 	skipIfNoParityEnv(t)
-	path := "/api/v1/concepts/suggest?query=computer&limit=5"
+	path := "/api/v2/concepts/suggest?query=computer&limit=5"
 	railsCode, railsBody := get(t, railsBase, path)
 	goCode, goBody := get(t, goBase, path)
 	if railsCode != goCode {
@@ -197,7 +197,7 @@ func TestParity_LabelsSearch(t *testing.T) {
 	skipIfNoParityEnv(t)
 	// Label ordering diverges slightly between Rails and Go for tied rows,
 	// so compare a broader result set by ID and ignore order.
-	path := "/api/v1/labels/search?query=hello&limit=50"
+	path := "/api/v2/labels/search?query=hello&limit=50"
 	railsCode, railsBody := get(t, railsBase, path)
 	goCode, goBody := get(t, goBase, path)
 	if railsCode != goCode {
@@ -229,7 +229,7 @@ func TestParity_LabelsSearch(t *testing.T) {
 
 func TestParity_Pictos(t *testing.T) {
 	skipIfNoParityEnv(t)
-	path := "/api/v1/pictos?symbolset=arasaac&per_page=5"
+	path := "/api/v2/pictos?symbolset=arasaac&per_page=5"
 	railsCode, railsBody := get(t, railsBase, path)
 	goCode, goBody := get(t, goBase, path)
 	if railsCode != goCode {
@@ -265,7 +265,7 @@ func TestParity_Pictos(t *testing.T) {
 
 func TestParity_AuthNoKey(t *testing.T) {
 	skipIfNoParityEnv(t)
-	path := "/api/v1/languages/active"
+	path := "/api/v2/languages/active"
 	railsCode, railsBody := request(t, railsBase, path, "")
 	goCode, goBody := request(t, goBase, path, "")
 	if railsCode != goCode {
@@ -276,7 +276,7 @@ func TestParity_AuthNoKey(t *testing.T) {
 
 func TestParity_AuthInvalidKey(t *testing.T) {
 	skipIfNoParityEnv(t)
-	path := "/api/v1/languages/active"
+	path := "/api/v2/languages/active"
 	railsCode, railsBody := request(t, railsBase, path, "invalid-key")
 	goCode, goBody := request(t, goBase, path, "invalid-key")
 	if railsCode != goCode {
@@ -287,7 +287,7 @@ func TestParity_AuthInvalidKey(t *testing.T) {
 
 func TestParity_ConceptsSuggestMissingQuery(t *testing.T) {
 	skipIfNoParityEnv(t)
-	path := "/api/v1/concepts/suggest"
+	path := "/api/v2/concepts/suggest"
 	railsCode, railsBody := get(t, railsBase, path)
 	goCode, goBody := get(t, goBase, path)
 	if railsCode != goCode {
@@ -298,7 +298,7 @@ func TestParity_ConceptsSuggestMissingQuery(t *testing.T) {
 
 func TestParity_LabelsSearchMissingQuery(t *testing.T) {
 	skipIfNoParityEnv(t)
-	path := "/api/v1/labels/search"
+	path := "/api/v2/labels/search"
 	railsCode, railsBody := get(t, railsBase, path)
 	goCode, goBody := get(t, goBase, path)
 	if railsCode != goCode {
@@ -309,7 +309,7 @@ func TestParity_LabelsSearchMissingQuery(t *testing.T) {
 
 func TestParity_PictosInvalidSince(t *testing.T) {
 	skipIfNoParityEnv(t)
-	path := "/api/v1/pictos?symbolset=arasaac&since=not-a-date"
+	path := "/api/v2/pictos?symbolset=arasaac&since=not-a-date"
 	railsCode, railsBody := get(t, railsBase, path)
 	goCode, goBody := get(t, goBase, path)
 	if railsCode != goCode {

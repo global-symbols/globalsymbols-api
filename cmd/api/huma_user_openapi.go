@@ -17,7 +17,7 @@ func registerUserOpenAPI(api huma.API, cfg *config.Config) {
 		o.Paths = map[string]*huma.PathItem{}
 	}
 
-	desc := "Proxies to the Rails Global Symbols API at `/api/v1/user`. Send an OAuth2 access token (e.g. Doorkeeper) in the `Authorization` header. Required scope: `profile`. Response shape and status codes come from Rails."
+	desc := "Proxies this route to the Rails Global Symbols API at `/api/v1/user`. Send an OAuth2 access token (e.g. Doorkeeper) in the `Authorization` header. Required scope: `profile`. Response shape and status codes come from Rails."
 	if u, err := url.Parse(cfg.RailsBaseURL); err == nil && u.Scheme != "" && u.Host != "" {
 		base := strings.TrimRight(cfg.RailsBaseURL, "/")
 		desc += " Typical Doorkeeper-style endpoints are under `" + base + "` (for example `/oauth/token`)."

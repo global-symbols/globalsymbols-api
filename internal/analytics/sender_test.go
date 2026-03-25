@@ -45,7 +45,7 @@ func TestSenderFlushesPendingBatchOnShutdown(t *testing.T) {
 
 	ok := sender.Enqueue(Record{
 		Method:     http.MethodGet,
-		Path:       "/api/v1/languages/active",
+		Path:       "/api/v2/languages/active",
 		StatusCode: http.StatusOK,
 	})
 	if !ok {
@@ -111,7 +111,7 @@ func TestSenderAlertsTeamsWhenBatchIsLost(t *testing.T) {
 
 	ok := sender.Enqueue(Record{
 		Method:     http.MethodGet,
-		Path:       "/api/v1/languages/active",
+		Path:       "/api/v2/languages/active",
 		StatusCode: http.StatusOK,
 	})
 	if !ok {

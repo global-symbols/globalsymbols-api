@@ -93,7 +93,7 @@ func decodeJSON[T any](t *testing.T, body []byte) T {
 
 func TestAuth_NoKey_401(t *testing.T) {
 	skipIfNoEnv(t)
-	code, body := get(t, "/api/v1/languages/active", false)
+	code, body := get(t, "/api/v2/languages/active", false)
 	if code != http.StatusUnauthorized {
 		t.Errorf("expected 401 without key, got %d", code)
 	}
@@ -104,7 +104,7 @@ func TestAuth_NoKey_401(t *testing.T) {
 
 func TestAuth_InvalidKey_401(t *testing.T) {
 	skipIfNoEnv(t)
-	req, _ := http.NewRequest(http.MethodGet, baseURL+"/api/v1/languages/active", nil)
+	req, _ := http.NewRequest(http.MethodGet, baseURL+"/api/v2/languages/active", nil)
 	req.Header.Set("X-Api-Key", "invalid-key")
 	req.Header.Set("Accept", "application/json")
 	resp, err := http.DefaultClient.Do(req)
@@ -124,7 +124,7 @@ func TestAuth_InvalidKey_401(t *testing.T) {
 
 func TestAuth_ValidKey_200(t *testing.T) {
 	skipIfNoEnv(t)
-	code, body := get(t, "/api/v1/languages/active", true)
+	code, body := get(t, "/api/v2/languages/active", true)
 	if code != http.StatusOK {
 		t.Errorf("expected 200 with valid key, got %d body %s", code, string(body))
 	}
@@ -149,7 +149,7 @@ func TestAuth_ValidKey_200(t *testing.T) {
 
 func TestValidation_PictosInvalidSince_400(t *testing.T) {
 	skipIfNoEnv(t)
-	code, body := get(t, "/api/v1/pictos?symbolset=arasaac&since=not-a-date", true)
+	code, body := get(t, "/api/v2/pictos?symbolset=arasaac&since=not-a-date", true)
 	if code != http.StatusBadRequest {
 		t.Errorf("expected 400 for invalid since, got %d", code)
 	}
@@ -160,7 +160,7 @@ func TestValidation_PictosInvalidSince_400(t *testing.T) {
 
 func TestValidation_ConceptsMissingQuery_400(t *testing.T) {
 	skipIfNoEnv(t)
-	code, body := get(t, "/api/v1/concepts/suggest", true)
+	code, body := get(t, "/api/v2/concepts/suggest", true)
 	if code != http.StatusBadRequest {
 		t.Errorf("expected 400 when query missing, got %d", code)
 	}
@@ -171,7 +171,7 @@ func TestValidation_ConceptsMissingQuery_400(t *testing.T) {
 
 func TestValidation_LabelsMissingQuery_400(t *testing.T) {
 	skipIfNoEnv(t)
-	code, body := get(t, "/api/v1/labels/search", true)
+	code, body := get(t, "/api/v2/labels/search", true)
 	if code != http.StatusBadRequest {
 		t.Errorf("expected 400 when query missing, got %d", code)
 	}
@@ -182,7 +182,7 @@ func TestValidation_LabelsMissingQuery_400(t *testing.T) {
 
 func TestHappy_LanguagesActive(t *testing.T) {
 	skipIfNoEnv(t)
-	code, body := get(t, "/api/v1/languages/active", true)
+	code, body := get(t, "/api/v2/languages/active", true)
 	if code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", code)
 	}
@@ -207,7 +207,7 @@ func TestHappy_LanguagesActive(t *testing.T) {
 
 func TestHappy_Symbolsets(t *testing.T) {
 	skipIfNoEnv(t)
-	code, body := get(t, "/api/v1/symbolsets", true)
+	code, body := get(t, "/api/v2/symbolsets", true)
 	if code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", code)
 	}
@@ -232,7 +232,7 @@ func TestHappy_Symbolsets(t *testing.T) {
 
 func TestHappy_Pictos(t *testing.T) {
 	skipIfNoEnv(t)
-	code, body := get(t, "/api/v1/pictos?symbolset=arasaac&per_page=2", true)
+	code, body := get(t, "/api/v2/pictos?symbolset=arasaac&per_page=2", true)
 	if code != http.StatusOK {
 		t.Fatalf("expected 200, got %d body %s", code, string(body))
 	}
@@ -278,7 +278,7 @@ func TestHappy_Pictos(t *testing.T) {
 
 func TestHappy_ConceptsSuggest(t *testing.T) {
 	skipIfNoEnv(t)
-	code, body := get(t, "/api/v1/concepts/suggest?query=computer&limit=5", true)
+	code, body := get(t, "/api/v2/concepts/suggest?query=computer&limit=5", true)
 	if code != http.StatusOK {
 		t.Fatalf("expected 200, got %d body %s", code, string(body))
 	}
@@ -305,7 +305,7 @@ func TestHappy_ConceptsSuggest(t *testing.T) {
 
 func TestHappy_LabelsSearch(t *testing.T) {
 	skipIfNoEnv(t)
-	code, body := get(t, "/api/v1/labels/search?query=dog&language=eng&language_iso_format=639-3&limit=5", true)
+	code, body := get(t, "/api/v2/labels/search?query=dog&language=eng&language_iso_format=639-3&limit=5", true)
 	if code != http.StatusOK {
 		t.Fatalf("expected 200, got %d body %s", code, string(body))
 	}
@@ -341,7 +341,7 @@ func TestHappy_LabelsSearch(t *testing.T) {
 
 func TestHappy_LabelsSearch_WithPreview(t *testing.T) {
 	skipIfNoEnv(t)
-	code, body := get(t, "/api/v1/labels/search?query=dog&language=eng&language_iso_format=639-3&limit=5&include_preview=true", true)
+	code, body := get(t, "/api/v2/labels/search?query=dog&language=eng&language_iso_format=639-3&limit=5&include_preview=true", true)
 	if code != http.StatusOK {
 		t.Fatalf("expected 200, got %d body %s", code, string(body))
 	}

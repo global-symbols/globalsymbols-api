@@ -45,7 +45,7 @@ func TestDetectorAlertsOnRateLimitBreachSpikePerKey(t *testing.T) {
 	record := analytics.Record{
 		APIKeyID:          "42",
 		UserEmail:         "api@example.com",
-		Path:              "/api/v1/labels/search",
+		Path:              "/api/v2/labels/search",
 		StatusCode:        http.StatusTooManyRequests,
 		IsRateLimitBreach: true,
 	}
@@ -106,7 +106,7 @@ func TestDetectorAlertsOnUnauthorizedSpikePerIP(t *testing.T) {
 
 	record := analytics.Record{
 		IPAddress:  "203.0.113.9",
-		Path:       "/api/v1/languages/active",
+		Path:       "/api/v2/languages/active",
 		StatusCode: http.StatusUnauthorized,
 	}
 
@@ -166,7 +166,7 @@ func TestDetectorSuppressesRepeatedAlertsDuringCooldown(t *testing.T) {
 
 	record := analytics.Record{
 		APIKeyID:          "42",
-		Path:              "/api/v1/labels/search",
+		Path:              "/api/v2/labels/search",
 		StatusCode:        http.StatusTooManyRequests,
 		IsRateLimitBreach: true,
 	}
