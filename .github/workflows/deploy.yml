@@ -158,7 +158,7 @@ jobs:
           # printf "%s\n" "${DEPLOY_SSH_KNOWN_HOSTS}" > "${HOME}/.ssh/deploy_known_hosts"
 
           mkdir -p "${HOME}/.ssh"
-          printf "%s" "${DEPLOY_SSH_PRIVATE_KEY}" | tr -d '\r' > "${HOME}/.ssh/deploy_key"
+          printf "%b" "${DEPLOY_SSH_PRIVATE_KEY}" | tr -d '\r' > "${HOME}/.ssh/deploy_key"
           chmod 600 "${HOME}/.ssh/deploy_key"
           printf "%s" "${DEPLOY_SSH_KNOWN_HOSTS}" | tr -d '\r' > "${HOME}/.ssh/deploy_known_hosts"
           chmod 600 "${HOME}/.ssh/deploy_known_hosts"
@@ -190,7 +190,7 @@ jobs:
           # printf "%s\n" "${DEPLOY_SSH_KNOWN_HOSTS}" > "${HOME}/.ssh/deploy_known_hosts"
           
           mkdir -p "${HOME}/.ssh"
-          printf "%s" "${DEPLOY_SSH_PRIVATE_KEY}" | tr -d '\r' > "${HOME}/.ssh/deploy_key"
+          printf "%b" "${DEPLOY_SSH_PRIVATE_KEY}" | tr -d '\r' > "${HOME}/.ssh/deploy_key"
           chmod 600 "${HOME}/.ssh/deploy_key"
           printf "%s" "${DEPLOY_SSH_KNOWN_HOSTS}" | tr -d '\r' > "${HOME}/.ssh/deploy_known_hosts"
           chmod 600 "${HOME}/.ssh/deploy_known_hosts"
