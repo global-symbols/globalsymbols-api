@@ -153,9 +153,10 @@ jobs:
           set -euo pipefail
 
           mkdir -p "${HOME}/.ssh"
-          printf "%s\n" "${DEPLOY_SSH_PRIVATE_KEY}" > "${HOME}/.ssh/deploy_key"
+          printf "%s" "${DEPLOY_SSH_PRIVATE_KEY}" | tr -d '\r' > "${HOME}/.ssh/deploy_key"
           chmod 600 "${HOME}/.ssh/deploy_key"
-          printf "%s\n" "${DEPLOY_SSH_KNOWN_HOSTS}" > "${HOME}/.ssh/deploy_known_hosts"
+          printf "%s" "${DEPLOY_SSH_KNOWN_HOSTS}" | tr -d '\r' > "${HOME}/.ssh/deploy_known_hosts"
+          chmod 600 "${HOME}/.ssh/deploy_known_hosts"
 
           ssh_opts=(
             -i "${HOME}/.ssh/deploy_key"
@@ -179,9 +180,17 @@ jobs:
           set -euo pipefail
 
           mkdir -p "${HOME}/.ssh"
-          printf "%s\n" "${DEPLOY_SSH_PRIVATE_KEY}" > "${HOME}/.ssh/deploy_key"
+          printf "%s" "${DEPLOY_SSH_PRIVATE_KEY}" | tr -d '\r' > "${HOME}/.ssh/deploy_key"
           chmod 600 "${HOME}/.ssh/deploy_key"
-          printf "%s\n" "${DEPLOY_SSH_KNOWN_HOSTS}" > "${HOME}/.ssh/deploy_known_hosts"
+          printf "%s" "${DEPLOY_SSH_KNOWN_HOSTS}" | tr -d '\r' > "${HOME}/.ssh/deploy_known_hosts"
+          chmod 600 "${HOME}/.ssh/deploy_known_hosts"
+
+          echo "known_hosts line count:"
+          wc -l "${HOME}/.ssh/deploy_known_hosts"
+          echo "production host lookup:"
+          ssh-keygen -F "${PRODUCTION_SSH_HOST}" -f "${HOME}/.ssh/deploy_known_hosts" || true
+          echo "visible known_hosts formatting:"
+          sed -n 'l' "${HOME}/.ssh/deploy_known_hosts"
 
           ssh_opts=(
             -i "${HOME}/.ssh/deploy_key"
