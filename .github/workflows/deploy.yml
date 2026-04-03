@@ -43,6 +43,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
+          # Use the repo's Go version if declared; otherwise actions/setup-go will fall back safely.
           go-version-file: go.mod
           cache: true
 
@@ -124,7 +125,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Expected release layout:
+          # Expected release layout (see Task 1):
           #   <RELEASE_ID>/
           #     bin/go-api
           #     scripts/install_release.sh
@@ -154,8 +155,7 @@ jobs:
           mkdir -p "${HOME}/.ssh"
           printf "%s\n" "${DEPLOY_SSH_PRIVATE_KEY}" > "${HOME}/.ssh/deploy_key"
           chmod 600 "${HOME}/.ssh/deploy_key"
-          printf "%s" "${DEPLOY_SSH_KNOWN_HOSTS}" | tr -d '\r' > "${HOME}/.ssh/deploy_known_hosts"
-          chmod 600 "${HOME}/.ssh/deploy_known_hosts"
+          printf "%s\n" "${DEPLOY_SSH_KNOWN_HOSTS}" > "${HOME}/.ssh/deploy_known_hosts"
 
           ssh_opts=(
             -i "${HOME}/.ssh/deploy_key"
@@ -163,14 +163,12 @@ jobs:
             -o UserKnownHostsFile="${HOME}/.ssh/deploy_known_hosts"
           )
 
-          preproduction_host="$(printf "%s" "${PREPRODUCTION_SSH_HOST}" | tr -d '\r\n')"
-
           target_dir="${PREPRODUCTION_UPLOAD_DIR%/}/${RELEASE_ID}"
-          ssh "${ssh_opts[@]}" "${PREPRODUCTION_SSH_USER}@${preproduction_host}" \
+          ssh "${ssh_opts[@]}" "${PREPRODUCTION_SSH_USER}@${PREPRODUCTION_SSH_HOST}" \
             "mkdir -p '${target_dir}'"
 
           scp -r "${ssh_opts[@]}" "package/${RELEASE_ID}/"* \
-            "${PREPRODUCTION_SSH_USER}@${preproduction_host}:${target_dir}/"
+            "${PREPRODUCTION_SSH_USER}@${PREPRODUCTION_SSH_HOST}:${target_dir}/"
 
           echo "Pre-production artifact copied to: ${target_dir}/"
 
@@ -183,19 +181,7 @@ jobs:
           mkdir -p "${HOME}/.ssh"
           printf "%s\n" "${DEPLOY_SSH_PRIVATE_KEY}" > "${HOME}/.ssh/deploy_key"
           chmod 600 "${HOME}/.ssh/deploy_key"
-          printf "%s" "${DEPLOY_SSH_KNOWN_HOSTS}" | tr -d '\r' > "${HOME}/.ssh/deploy_known_hosts"
-          chmod 600 "${HOME}/.ssh/deploy_known_hosts"
-
-          production_host="$(printf "%s" "${PRODUCTION_SSH_HOST}" | tr -d '\r\n')"
-
-          echo "known_hosts line count:"
-          wc -l "${HOME}/.ssh/deploy_known_hosts"
-          echo "production host visible formatting:"
-          printf '<%s>\n' "${production_host}" | sed -n 'l'
-          echo "production host lookup:"
-          ssh-keygen -F "${production_host}" -f "${HOME}/.ssh/deploy_known_hosts" || true
-          echo "visible known_hosts formatting:"
-          sed -n 'l' "${HOME}/.ssh/deploy_known_hosts"
+          printf "%s\n" "${DEPLOY_SSH_KNOWN_HOSTS}" > "${HOME}/.ssh/deploy_known_hosts"
 
           ssh_opts=(
             -i "${HOME}/.ssh/deploy_key"
@@ -204,11 +190,11 @@ jobs:
           )
 
           target_dir="${PRODUCTION_UPLOAD_DIR%/}/${RELEASE_ID}"
-          ssh "${ssh_opts[@]}" "${PRODUCTION_SSH_USER}@${production_host}" \
+          ssh "${ssh_opts[@]}" "${PRODUCTION_SSH_USER}@${PRODUCTION_SSH_HOST}" \
             "mkdir -p '${target_dir}'"
 
           scp -r "${ssh_opts[@]}" "package/${RELEASE_ID}/"* \
-            "${PRODUCTION_SSH_USER}@${production_host}:${target_dir}/"
+            "${PRODUCTION_SSH_USER}@${PRODUCTION_SSH_HOST}:${target_dir}/"
 
           echo "Production artifact copied to: ${target_dir}/"
 
@@ -232,3 +218,4 @@ jobs:
             echo "Production upload dir for this release:"
             echo "${PRODUCTION_UPLOAD_DIR%/}/${RELEASE_ID}/"
           fi
+
