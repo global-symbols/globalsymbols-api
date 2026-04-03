@@ -185,6 +185,20 @@ jobs:
           chmod 600 "${HOME}/.ssh/deploy_key"
           printf "%s\n" "${PRODUCTION_SSH_KNOWN_HOSTS}" > "${HOME}/.ssh/deploy_known_hosts"
 
+          production_host="$(printf "%s" "${PRODUCTION_SSH_HOST}" | tr -d '\r\n')"
+
+          echo "known_hosts line count:"
+          wc -l "${HOME}/.ssh/deploy_known_hosts"
+
+          echo "production host visible formatting:"
+          printf '<%s>\n' "${production_host}" | sed -n 'l'
+
+          echo "production host lookup:"
+          ssh-keygen -F "${production_host}" -f "${HOME}/.ssh/deploy_known_hosts" || true
+
+          echo "visible known_hosts formatting:"
+          sed -n 'l' "${HOME}/.ssh/deploy_known_hosts"
+
           ssh_opts=(
             -i "${HOME}/.ssh/deploy_key"
             -o StrictHostKeyChecking=yes
@@ -192,11 +206,11 @@ jobs:
           )
 
           target_dir="${PRODUCTION_UPLOAD_DIR%/}/${RELEASE_ID}"
-          ssh "${ssh_opts[@]}" "${PRODUCTION_SSH_USER}@${PRODUCTION_SSH_HOST}" \
+          ssh "${ssh_opts[@]}" "${PRODUCTION_SSH_USER}@${production_host}" \
             "mkdir -p '${target_dir}'"
 
           scp -r "${ssh_opts[@]}" "package/${RELEASE_ID}/"* \
-            "${PRODUCTION_SSH_USER}@${PRODUCTION_SSH_HOST}:${target_dir}/"
+            "${PRODUCTION_SSH_USER}@${production_host}:${target_dir}/"
 
           echo "Production artifact copied to: ${target_dir}/"
 
