@@ -34,7 +34,8 @@ jobs:
 
       # Shared secrets
       DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
-      DEPLOY_SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
+      PREPRODUCTION_SSH_KNOWN_HOSTS: ${{ secrets.PREPRODUCTION_SSH_KNOWN_HOSTS }}
+      PRODUCTION_SSH_KNOWN_HOSTS: ${{ secrets.PRODUCTION_SSH_KNOWN_HOSTS }}
 
     steps:
       - name: Checkout repository
@@ -63,14 +64,15 @@ jobs:
 
           # Shared
           require_non_empty "DEPLOY_SSH_PRIVATE_KEY"
-          require_non_empty "DEPLOY_SSH_KNOWN_HOSTS"
 
           if [[ "${PREPRODUCTION_DEPLOY_ENABLED:-true}" != "false" ]]; then
             require_non_empty "PREPRODUCTION_SSH_HOST"
+            require_non_empty "PREPRODUCTION_SSH_KNOWN_HOSTS"
           fi
 
           if [[ "${PRODUCTION_DEPLOY_ENABLED:-true}" != "false" ]]; then
             require_non_empty "PRODUCTION_SSH_HOST"
+            require_non_empty "PRODUCTION_SSH_KNOWN_HOSTS"
           fi
 
       - name: Show selected deployment targets
@@ -155,7 +157,7 @@ jobs:
           mkdir -p "${HOME}/.ssh"
           printf "%s\n" "${DEPLOY_SSH_PRIVATE_KEY}" > "${HOME}/.ssh/deploy_key"
           chmod 600 "${HOME}/.ssh/deploy_key"
-          printf "%s\n" "${DEPLOY_SSH_KNOWN_HOSTS}" > "${HOME}/.ssh/deploy_known_hosts"
+          printf "%s\n" "${PREPRODUCTION_SSH_KNOWN_HOSTS}" > "${HOME}/.ssh/deploy_known_hosts"
 
           ssh_opts=(
             -i "${HOME}/.ssh/deploy_key"
@@ -181,7 +183,7 @@ jobs:
           mkdir -p "${HOME}/.ssh"
           printf "%s\n" "${DEPLOY_SSH_PRIVATE_KEY}" > "${HOME}/.ssh/deploy_key"
           chmod 600 "${HOME}/.ssh/deploy_key"
-          printf "%s\n" "${DEPLOY_SSH_KNOWN_HOSTS}" > "${HOME}/.ssh/deploy_known_hosts"
+          printf "%s\n" "${PRODUCTION_SSH_KNOWN_HOSTS}" > "${HOME}/.ssh/deploy_known_hosts"
 
           ssh_opts=(
             -i "${HOME}/.ssh/deploy_key"
