@@ -87,8 +87,8 @@ func mergeResponseMaps(groups ...map[string]*huma.Response) map[string]*huma.Res
 
 func apiKeyProtectedResponses(extra map[int]string) map[string]*huma.Response {
 	common := map[int]string{
-		http.StatusUnauthorized:      "Missing or invalid API key.",
-		http.StatusTooManyRequests:   "Rate limit exceeded for this API key.",
+		http.StatusUnauthorized:        "Missing or invalid API key.",
+		http.StatusTooManyRequests:     "Rate limit exceeded for this API key.",
 		http.StatusInternalServerError: "Internal server error.",
 	}
 	return mergeResponseMaps(responseMap(common), responseMap(extra))

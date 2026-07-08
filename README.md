@@ -78,7 +78,9 @@ go test ./tests/regression -v -count=1
 
 #### 2. Parity tests (Rails vs Go)
 
-These tests send the same requests to both the Rails API and the Go API and compare responses. They cover both successful responses and selected error cases, and the happy-path tests now require both APIs to return `200 OK` before comparing payloads.
+These tests send the same logical requests to both APIs and compare responses. Rails is called at `/api/v1/...` and Go at `/api/v2/...`. They cover both successful responses and selected error cases, and the happy-path tests now require both APIs to return `200 OK` before comparing payloads.
+
+Auth parity tests document an intentional difference: Rails v1 data endpoints are public, while Go v2 requires a valid API key.
 
 Environment variables (required):
 

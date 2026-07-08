@@ -1,4 +1,5 @@
 // Package parity runs the same requests against Rails and Go APIs and compares responses.
+// Rails serves the reference API at /api/v1; Go serves the replacement at /api/v2.
 // Requires Rails at TEST_RAILS_BASE_URL (e.g. http://localhost:3000) and Go at TEST_GO_BASE_URL (e.g. http://localhost:8080),
 // and a valid API key in TEST_API_KEY. Skip if env vars are not set or APIs are unavailable.
 package parity
@@ -9,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"sort"
+	"strings"
 	"testing"
 
 	"gs-api/internal/models"
@@ -53,6 +55,22 @@ func get(t *testing.T, baseURL, path string) (int, []byte) {
 	return request(t, baseURL, path, apiKey)
 }
 
+func railsAPIPath(goPath string) string {
+	return strings.Replace(goPath, "/api/v2", "/api/v1", 1)
+}
+
+func parityGet(t *testing.T, goPath string) (railsCode int, railsBody []byte, goCode int, goBody []byte) {
+	railsCode, railsBody = get(t, railsBase, railsAPIPath(goPath))
+	goCode, goBody = get(t, goBase, goPath)
+	return railsCode, railsBody, goCode, goBody
+}
+
+func parityRequest(t *testing.T, goPath, key string) (railsCode int, railsBody []byte, goCode int, goBody []byte) {
+	railsCode, railsBody = request(t, railsBase, railsAPIPath(goPath), key)
+	goCode, goBody = request(t, goBase, goPath, key)
+	return railsCode, railsBody, goCode, goBody
+}
+
 func sortedInt64sCopy(in []int64) []int64 {
 	out := append([]int64(nil), in...)
 	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
@@ -78,6 +96,44 @@ func assertSameIDMultiset(t *testing.T, label string, railsIDs, goIDs []int64) {
 	}
 }
 
+// assertAuthPolicyMismatch documents an intentional v1 vs v2 difference:
+// Rails v1 data endpoints are public; Go v2 requires a valid API key.
+func assertAuthPolicyMismatch(t *testing.T, label string, railsCode int, railsBody []byte, goCode int, goBody []byte) {
+	t.Helper()
+
+	if railsCode != http.StatusOK {
+		t.Fatalf("%s Rails v1: expected 200 on public endpoint, got %d body=%s", label, railsCode, string(railsBody))
+	}
+	if goCode != http.StatusUnauthorized {
+		t.Fatalf("%s Go v2: expected 401 without a valid API key, got %d body=%s", label, goCode, string(goBody))
+	}
+
+	var railsArr []models.Language
+	if err := json.Unmarshal(railsBody, &railsArr); err != nil {
+		t.Fatalf("%s Rails JSON: %v", label, err)
+	}
+	if len(railsArr) == 0 {
+		t.Errorf("%s Rails v1: expected at least one active language", label)
+	}
+
+	assertGoAPIKeyRequired(t, label, goBody)
+}
+
+func assertGoAPIKeyRequired(t *testing.T, label string, goBody []byte) {
+	t.Helper()
+
+	var goErr apiErrorResponse
+	if err := json.Unmarshal(goBody, &goErr); err != nil {
+		t.Fatalf("%s Go JSON: %v body=%s", label, err, string(goBody))
+	}
+	if goErr.Code != http.StatusUnauthorized {
+		t.Errorf("%s Go error code: got %d, want %d", label, goErr.Code, http.StatusUnauthorized)
+	}
+	if goErr.Error == "" {
+		t.Errorf("%s Go error message: expected non-empty error text", label)
+	}
+}
+
 func assertSameErrorResponse(t *testing.T, label string, railsBody, goBody []byte) {
 	t.Helper()
 
@@ -99,9 +155,7 @@ func assertSameErrorResponse(t *testing.T, label string, railsBody, goBody []byt
 
 func TestParity_LanguagesActive(t *testing.T) {
 	skipIfNoParityEnv(t)
-	path := "/api/v2/languages/active"
-	railsCode, railsBody := get(t, railsBase, path)
-	goCode, goBody := get(t, goBase, path)
+	railsCode, railsBody, goCode, goBody := parityGet(t, "/api/v2/languages/active")
 	if railsCode != goCode {
 		t.Errorf("status: Rails %d vs Go %d", railsCode, goCode)
 	}
@@ -131,9 +185,7 @@ func TestParity_LanguagesActive(t *testing.T) {
 
 func TestParity_Symbolsets(t *testing.T) {
 	skipIfNoParityEnv(t)
-	path := "/api/v2/symbolsets"
-	railsCode, railsBody := get(t, railsBase, path)
-	goCode, goBody := get(t, goBase, path)
+	railsCode, railsBody, goCode, goBody := parityGet(t, "/api/v2/symbolsets")
 	if railsCode != goCode {
 		t.Errorf("status: Rails %d vs Go %d", railsCode, goCode)
 	}
@@ -163,9 +215,7 @@ func TestParity_Symbolsets(t *testing.T) {
 
 func TestParity_ConceptsSuggest(t *testing.T) {
 	skipIfNoParityEnv(t)
-	path := "/api/v2/concepts/suggest?query=computer&limit=5"
-	railsCode, railsBody := get(t, railsBase, path)
-	goCode, goBody := get(t, goBase, path)
+	railsCode, railsBody, goCode, goBody := parityGet(t, "/api/v2/concepts/suggest?query=computer&limit=5")
 	if railsCode != goCode {
 		t.Errorf("status: Rails %d vs Go %d", railsCode, goCode)
 	}
@@ -197,9 +247,7 @@ func TestParity_LabelsSearch(t *testing.T) {
 	skipIfNoParityEnv(t)
 	// Label ordering diverges slightly between Rails and Go for tied rows,
 	// so compare a broader result set by ID and ignore order.
-	path := "/api/v2/labels/search?query=hello&limit=50"
-	railsCode, railsBody := get(t, railsBase, path)
-	goCode, goBody := get(t, goBase, path)
+	railsCode, railsBody, goCode, goBody := parityGet(t, "/api/v2/labels/search?query=hello&limit=50")
 	if railsCode != goCode {
 		t.Errorf("status: Rails %d vs Go %d", railsCode, goCode)
 	}
@@ -229,9 +277,7 @@ func TestParity_LabelsSearch(t *testing.T) {
 
 func TestParity_Pictos(t *testing.T) {
 	skipIfNoParityEnv(t)
-	path := "/api/v2/pictos?symbolset=arasaac&per_page=5"
-	railsCode, railsBody := get(t, railsBase, path)
-	goCode, goBody := get(t, goBase, path)
+	railsCode, railsBody, goCode, goBody := parityGet(t, "/api/v2/pictos?symbolset=arasaac&per_page=5")
 	if railsCode != goCode {
 		t.Errorf("status: Rails %d vs Go %d", railsCode, goCode)
 	}
@@ -265,31 +311,19 @@ func TestParity_Pictos(t *testing.T) {
 
 func TestParity_AuthNoKey(t *testing.T) {
 	skipIfNoParityEnv(t)
-	path := "/api/v2/languages/active"
-	railsCode, railsBody := request(t, railsBase, path, "")
-	goCode, goBody := request(t, goBase, path, "")
-	if railsCode != goCode {
-		t.Errorf("status: Rails %d vs Go %d", railsCode, goCode)
-	}
-	assertSameErrorResponse(t, "auth-no-key", railsBody, goBody)
+	railsCode, railsBody, goCode, goBody := parityRequest(t, "/api/v2/languages/active", "")
+	assertAuthPolicyMismatch(t, "auth-no-key", railsCode, railsBody, goCode, goBody)
 }
 
 func TestParity_AuthInvalidKey(t *testing.T) {
 	skipIfNoParityEnv(t)
-	path := "/api/v2/languages/active"
-	railsCode, railsBody := request(t, railsBase, path, "invalid-key")
-	goCode, goBody := request(t, goBase, path, "invalid-key")
-	if railsCode != goCode {
-		t.Errorf("status: Rails %d vs Go %d", railsCode, goCode)
-	}
-	assertSameErrorResponse(t, "auth-invalid-key", railsBody, goBody)
+	railsCode, railsBody, goCode, goBody := parityRequest(t, "/api/v2/languages/active", "invalid-key")
+	assertAuthPolicyMismatch(t, "auth-invalid-key", railsCode, railsBody, goCode, goBody)
 }
 
 func TestParity_ConceptsSuggestMissingQuery(t *testing.T) {
 	skipIfNoParityEnv(t)
-	path := "/api/v2/concepts/suggest"
-	railsCode, railsBody := get(t, railsBase, path)
-	goCode, goBody := get(t, goBase, path)
+	railsCode, railsBody, goCode, goBody := parityGet(t, "/api/v2/concepts/suggest")
 	if railsCode != goCode {
 		t.Errorf("status: Rails %d vs Go %d", railsCode, goCode)
 	}
@@ -298,9 +332,7 @@ func TestParity_ConceptsSuggestMissingQuery(t *testing.T) {
 
 func TestParity_LabelsSearchMissingQuery(t *testing.T) {
 	skipIfNoParityEnv(t)
-	path := "/api/v2/labels/search"
-	railsCode, railsBody := get(t, railsBase, path)
-	goCode, goBody := get(t, goBase, path)
+	railsCode, railsBody, goCode, goBody := parityGet(t, "/api/v2/labels/search")
 	if railsCode != goCode {
 		t.Errorf("status: Rails %d vs Go %d", railsCode, goCode)
 	}
@@ -309,9 +341,7 @@ func TestParity_LabelsSearchMissingQuery(t *testing.T) {
 
 func TestParity_PictosInvalidSince(t *testing.T) {
 	skipIfNoParityEnv(t)
-	path := "/api/v2/pictos?symbolset=arasaac&since=not-a-date"
-	railsCode, railsBody := get(t, railsBase, path)
-	goCode, goBody := get(t, goBase, path)
+	railsCode, railsBody, goCode, goBody := parityGet(t, "/api/v2/pictos?symbolset=arasaac&since=not-a-date")
 	if railsCode != goCode {
 		t.Errorf("status: Rails %d vs Go %d", railsCode, goCode)
 	}

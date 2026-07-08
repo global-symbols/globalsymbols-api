@@ -85,11 +85,16 @@ func fetch(baseURL, path, apiKey string) (int, []byte, error) {
 	return resp.StatusCode, body, nil
 }
 
+func railsAPIPath(goPath string) string {
+	return strings.Replace(goPath, "/api/v2", "/api/v1", 1)
+}
+
 func inspectEndpoint(railsBase, goBase, apiKey string, ep endpointConfig) {
 	fmt.Printf("=== %s ===\n", ep.Name)
-	fmt.Printf("Path: %s\n", ep.Path)
+	fmt.Printf("Go path:    %s\n", ep.Path)
+	fmt.Printf("Rails path: %s\n", railsAPIPath(ep.Path))
 
-	railsCode, railsBody, err := fetch(railsBase, ep.Path, apiKey)
+	railsCode, railsBody, err := fetch(railsBase, railsAPIPath(ep.Path), apiKey)
 	if err != nil {
 		fmt.Printf("Rails request error: %v\n", err)
 		return
