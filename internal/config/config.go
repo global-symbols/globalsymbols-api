@@ -11,6 +11,12 @@ import (
 
 type Config struct {
 	DBDSN        string
+	// DB pool limits (applied in internal/db.Open). Defaults suit a single go-api
+	// process against a co-located MySQL with max_connections around 151.
+	DBMaxOpenConns    int
+	DBMaxIdleConns    int
+	DBConnMaxIdleTime time.Duration
+	DBConnMaxLifetime   time.Duration
 	Port         string
 	ImageBaseURL string
 	// AppEnv matches Rails public/uploads segment (e.g. development, production). From APP_ENV.
@@ -25,6 +31,10 @@ type Config struct {
 func FromEnv() Config {
 	return Config{
 		DBDSN:        getenv("DB_DSN", "gs-repo-dev:gs-repo-dev@tcp(localhost:3307)/gs-repo-dev?parseTime=true&charset=utf8mb4&loc=UTC"),
+		DBMaxOpenConns:    getenvInt("DB_MAX_OPEN_CONNS", 30),
+		DBMaxIdleConns:    getenvInt("DB_MAX_IDLE_CONNS", 10),
+		DBConnMaxIdleTime: time.Duration(getenvInt("DB_CONN_MAX_IDLE_TIME_MS", 300000)) * time.Millisecond, // 5m
+		DBConnMaxLifetime:   time.Duration(getenvInt("DB_CONN_MAX_LIFETIME_MS", 3600000)) * time.Millisecond,  // 1h
 		Port:         getenv("PORT", "8080"),
 		ImageBaseURL: getenv("API_IMAGE_BASE_URL", "http://localhost:3000"),
 		AppEnv:       getenv("APP_ENV", "development"),

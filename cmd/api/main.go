@@ -22,7 +22,12 @@ import (
 func main() {
 	cfg := config.FromEnv()
 
-	sqlDB, err := db.Open(cfg.DBDSN)
+	sqlDB, err := db.Open(cfg.DBDSN, db.PoolConfig{
+		MaxOpenConns:    cfg.DBMaxOpenConns,
+		MaxIdleConns:    cfg.DBMaxIdleConns,
+		ConnMaxIdleTime: cfg.DBConnMaxIdleTime,
+		ConnMaxLifetime:   cfg.DBConnMaxLifetime,
+	})
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
