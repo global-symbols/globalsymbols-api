@@ -14,6 +14,7 @@ jobs:
     env:
       # Pre-production host remains a GitHub secret; the stable non-secret deployment
       # settings are committed here to keep GitHub repo settings minimal.
+      # Pre-prod host is arm64 (t4g); production is amd64 (t3).
       PREPRODUCTION_SSH_HOST: ${{ secrets.PREPRODUCTION_SSH_HOST }}
       PREPRODUCTION_SSH_USER: gs-api-deploy
       PREPRODUCTION_UPLOAD_DIR: /var/www/globalsymbols-api/uploads
@@ -21,6 +22,7 @@ jobs:
       PREPRODUCTION_SERVICE_NAME: globalsymbols-api.service
       PREPRODUCTION_ENV_FILE: /var/www/globalsymbols-api/.env
       PREPRODUCTION_DEPLOY_ENABLED: ${{ vars.PREPRODUCTION_DEPLOY_ENABLED }}
+      PREPRODUCTION_GOARCH: arm64
 
       # Production host remains a GitHub secret; the stable non-secret deployment
       # settings are committed here to keep GitHub repo settings minimal.
@@ -31,6 +33,7 @@ jobs:
       PRODUCTION_SERVICE_NAME: globalsymbols-api.service
       PRODUCTION_ENV_FILE: /var/www/globalsymbols-api/.env
       PRODUCTION_DEPLOY_ENABLED: ${{ vars.PRODUCTION_DEPLOY_ENABLED }}
+      PRODUCTION_GOARCH: amd64
 
       # Shared secrets
       DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
@@ -83,13 +86,13 @@ jobs:
           if [[ "${PREPRODUCTION_DEPLOY_ENABLED:-true}" == "false" ]]; then
             echo "Pre-production upload: disabled"
           else
-            echo "Pre-production upload: enabled"
+            echo "Pre-production upload: enabled (GOARCH=${PREPRODUCTION_GOARCH})"
           fi
 
           if [[ "${PRODUCTION_DEPLOY_ENABLED:-true}" == "false" ]]; then
             echo "Production upload: disabled"
           else
-            echo "Production upload: enabled"
+            echo "Production upload: enabled (GOARCH=${PRODUCTION_GOARCH})"
           fi
 
       - name: Compute release identifier
@@ -110,45 +113,40 @@ jobs:
           set -euo pipefail
           go test ./...
 
-      - name: Build Go API (linux/amd64)
+      - name: Build Go API for each target architecture
         shell: bash
         run: |
           set -euo pipefail
 
           export CGO_ENABLED=0
           export GOOS=linux
-          export GOARCH=amd64
 
-          mkdir -p "package/${RELEASE_ID}/bin"
-          go build -o "package/${RELEASE_ID}/bin/go-api" ./cmd/api
+          build_arch() {
+            local arch="$1"
+            local out_dir="package/${RELEASE_ID}-${arch}"
+            echo "Building linux/${arch} → ${out_dir}/bin/go-api"
+            mkdir -p "${out_dir}/bin" "${out_dir}/scripts" "${out_dir}/metadata"
+            GOARCH="${arch}" go build -buildvcs=false -o "${out_dir}/bin/go-api" ./cmd/api
 
-      - name: Package release artifact (predictable layout)
-        shell: bash
-        run: |
-          set -euo pipefail
+            if [[ ! -f "scripts/deploy/install_release.sh" ]]; then
+              echo "::error::Missing scripts/deploy/install_release.sh"
+              exit 1
+            fi
+            cp "scripts/deploy/install_release.sh" "${out_dir}/scripts/install_release.sh"
+            chmod +x "${out_dir}/scripts/install_release.sh"
 
-          # Expected release layout (see Task 1):
-          #   <RELEASE_ID>/
-          #     bin/go-api
-          #     scripts/install_release.sh
-          #     metadata/commit_sha.txt
-          #     metadata/built_at_utc.txt
-          mkdir -p "package/${RELEASE_ID}/scripts" "package/${RELEASE_ID}/metadata"
+            echo "${GITHUB_SHA}" > "${out_dir}/metadata/commit_sha.txt"
+            date -u +"%Y-%m-%dT%H:%M:%SZ" > "${out_dir}/metadata/built_at_utc.txt"
+            echo "${arch}" > "${out_dir}/metadata/goarch.txt"
 
-          # Copy the server-side install script into the release so operators use the
-          # installer version that matches the uploaded artifact.
-          if [[ ! -f "scripts/deploy/install_release.sh" ]]; then
-            echo "::error::Missing scripts/deploy/install_release.sh (required for packaging into scripts/install_release.sh)."
-            exit 1
-          fi
+            ls -la "${out_dir}/bin/go-api"
+          }
 
-          cp "scripts/deploy/install_release.sh" "package/${RELEASE_ID}/scripts/install_release.sh"
-          chmod +x "package/${RELEASE_ID}/scripts/install_release.sh"
+          # Always build both so either env can be enabled independently.
+          build_arch amd64
+          build_arch arm64
 
-          echo "${GITHUB_SHA}" > "package/${RELEASE_ID}/metadata/commit_sha.txt"
-          date -u +"%Y-%m-%dT%H:%M:%SZ" > "package/${RELEASE_ID}/metadata/built_at_utc.txt"
-
-      - name: Upload to pre-production (CI copy only)
+      - name: Upload to pre-production (CI copy only, arm64)
         if: ${{ vars.PREPRODUCTION_DEPLOY_ENABLED != 'false' }}
         shell: bash
         run: |
@@ -165,16 +163,22 @@ jobs:
             -o UserKnownHostsFile="${HOME}/.ssh/deploy_known_hosts"
           )
 
+          pkg_dir="package/${RELEASE_ID}-${PREPRODUCTION_GOARCH}"
+          if [[ ! -d "${pkg_dir}" ]]; then
+            echo "::error::Missing package directory ${pkg_dir}"
+            exit 1
+          fi
+
           target_dir="${PREPRODUCTION_UPLOAD_DIR%/}/${RELEASE_ID}"
           ssh "${ssh_opts[@]}" "${PREPRODUCTION_SSH_USER}@${PREPRODUCTION_SSH_HOST}" \
             "mkdir -p '${target_dir}'"
 
-          scp -r "${ssh_opts[@]}" "package/${RELEASE_ID}/"* \
+          scp -r "${ssh_opts[@]}" "${pkg_dir}/"* \
             "${PREPRODUCTION_SSH_USER}@${PREPRODUCTION_SSH_HOST}:${target_dir}/"
 
-          echo "Pre-production artifact copied to: ${target_dir}/"
+          echo "Pre-production (${PREPRODUCTION_GOARCH}) artifact copied to: ${target_dir}/"
 
-      - name: Upload to production (CI copy only)
+      - name: Upload to production (CI copy only, amd64)
         if: ${{ vars.PRODUCTION_DEPLOY_ENABLED != 'false' }}
         shell: bash
         run: |
@@ -191,14 +195,20 @@ jobs:
             -o UserKnownHostsFile="${HOME}/.ssh/deploy_known_hosts"
           )
 
+          pkg_dir="package/${RELEASE_ID}-${PRODUCTION_GOARCH}"
+          if [[ ! -d "${pkg_dir}" ]]; then
+            echo "::error::Missing package directory ${pkg_dir}"
+            exit 1
+          fi
+
           target_dir="${PRODUCTION_UPLOAD_DIR%/}/${RELEASE_ID}"
           ssh "${ssh_opts[@]}" "${PRODUCTION_SSH_USER}@${PRODUCTION_SSH_HOST}" \
             "mkdir -p '${target_dir}'"
 
-          scp -r "${ssh_opts[@]}" "package/${RELEASE_ID}/"* \
+          scp -r "${ssh_opts[@]}" "${pkg_dir}/"* \
             "${PRODUCTION_SSH_USER}@${PRODUCTION_SSH_HOST}:${target_dir}/"
 
-          echo "Production artifact copied to: ${target_dir}/"
+          echo "Production (${PRODUCTION_GOARCH}) artifact copied to: ${target_dir}/"
 
       - name: Artifact copy locations (for task 3)
         shell: bash
@@ -208,7 +218,7 @@ jobs:
           if [[ "${PREPRODUCTION_DEPLOY_ENABLED:-true}" == "false" ]]; then
             echo "Pre-production upload skipped."
           else
-            echo "Pre-production upload dir for this release:"
+            echo "Pre-production upload dir for this release (${PREPRODUCTION_GOARCH}):"
             echo "${PREPRODUCTION_UPLOAD_DIR%/}/${RELEASE_ID}/"
           fi
 
@@ -217,7 +227,6 @@ jobs:
           if [[ "${PRODUCTION_DEPLOY_ENABLED:-true}" == "false" ]]; then
             echo "Production upload skipped."
           else
-            echo "Production upload dir for this release:"
+            echo "Production upload dir for this release (${PRODUCTION_GOARCH}):"
             echo "${PRODUCTION_UPLOAD_DIR%/}/${RELEASE_ID}/"
           fi
-

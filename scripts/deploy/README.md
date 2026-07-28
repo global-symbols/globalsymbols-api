@@ -9,7 +9,14 @@ upload completes.
 
 ## Release Artifact Layout (CI Output)
 
-CI copies each environment the same way:
+CI builds **two** Linux binaries and uploads the correct one per environment:
+
+| Environment | Host arch | GOARCH uploaded |
+|-------------|-----------|-----------------|
+| pre-production | arm64 (t4g) | `arm64` |
+| production | amd64 (t3) | `amd64` |
+
+Each target still receives the same path layout:
 
 `<target-upload-directory>/<RELEASE_ID>/`
 
@@ -18,12 +25,13 @@ Expected contents:
 ```text
 <RELEASE_ID>/
   bin/
-    go-api
+    go-api                 # arch-specific binary for that host
   scripts/
     install_release.sh
   metadata/
     commit_sha.txt
     built_at_utc.txt
+    goarch.txt             # amd64 or arm64
 ```
 
 ## Operator Usage
