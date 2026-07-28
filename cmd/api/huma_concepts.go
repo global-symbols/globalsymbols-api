@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -14,6 +15,20 @@ import (
 	"gs-api/internal/models"
 	"gs-api/internal/previews"
 )
+
+// expandPathPictoSymbolset is the Rails attr_path for nested symbolset on labels.
+const expandPathPictoSymbolset = "picto.symbolset"
+
+// expandHas reports whether space-separated expand paths include the given path.
+// Unknown paths are ignored by callers; matching is exact (Rails-compatible).
+func expandHas(expand, path string) bool {
+	for _, p := range strings.Fields(expand) {
+		if p == path {
+			return true
+		}
+	}
+	return false
+}
 
 // registerHumaOperations registers Huma-backed operations that will be included
 // in the generated OpenAPI spec and Scalar docs.
@@ -139,6 +154,7 @@ type labelsSearchInput struct {
 	LanguageISOFormat string `query:"language_iso_format" doc:"Language ISO format (default: 639-3)"`
 	Limit             int    `query:"limit" doc:"Maximum number of results to return (1-100, default 10)"`
 	IncludePreview    bool   `query:"include_preview" doc:"When true, include an inline 64x64 PNG preview_data_url for each picto"`
+	Expand            string `query:"expand" doc:"Space-separated field paths to expand (e.g. picto.symbolset). Unknown paths are ignored."`
 }
 
 type labelsSearchOutput struct {
@@ -151,7 +167,7 @@ func registerLabelsSearch(api huma.API, sqlDB *sql.DB, cfg *config.Config) {
 		Method:      http.MethodGet,
 		Path:        "/labels/search",
 		Summary:     "Search labels by query",
-		Description: "Limit handling note: Out-of-range limit values are normalized to 10 (not rejected). The request then follows the normal success path.",
+		Description: "Limit handling note: Out-of-range limit values are normalized to 10 (not rejected). The request then follows the normal success path. Optional expand=picto.symbolset embeds nested symbolset objects (Rails-compatible); other expand paths are ignored.",
 		Responses: apiKeyProtectedResponses(map[int]string{
 			http.StatusBadRequest: "Missing or invalid query parameters.",
 		}),
@@ -190,6 +206,11 @@ func registerLabelsSearch(api huma.API, sqlDB *sql.DB, cfg *config.Config) {
 		if err != nil {
 			return nil, huma.Error500InternalServerError("Internal server error", err)
 		}
+		if expandHas(input.Expand, expandPathPictoSymbolset) {
+			if err := db.AttachPictoSymbolsets(sqlDB, list, cfg.ImageBaseURL, cfg.AppEnv); err != nil {
+				return nil, huma.Error500InternalServerError("Internal server error", err)
+			}
+		}
 		body := labelSearchResults(list)
 		if input.IncludePreview {
 			previewCtx, cancel := context.WithTimeout(ctx, previews.DefaultPictoPreviewTimeout)
@@ -225,7 +246,8 @@ func labelSearchResults(items []models.Label) []models.LabelSearchResult {
 
 // labelByIDInput models the path parameter for label lookup.
 type labelByIDInput struct {
-	ID int64 `path:"id" doc:"Label ID"`
+	ID     int64  `path:"id" doc:"Label ID"`
+	Expand string `query:"expand" doc:"Space-separated field paths to expand (e.g. picto.symbolset). Unknown paths are ignored."`
 }
 
 type labelByIDOutput struct {
@@ -238,6 +260,7 @@ func registerLabelByID(api huma.API, sqlDB *sql.DB, cfg *config.Config) {
 		Method:      http.MethodGet,
 		Path:        "/labels/{id}",
 		Summary:     "Get label by ID",
+		Description: "Optional expand=picto.symbolset embeds the nested symbolset object (Rails-compatible); other expand paths are ignored.",
 		Responses: apiKeyProtectedResponses(map[int]string{
 			http.StatusBadRequest: "Invalid label ID.",
 			http.StatusNotFound:   "Label not found.",
@@ -249,6 +272,13 @@ func registerLabelByID(api huma.API, sqlDB *sql.DB, cfg *config.Config) {
 		}
 		if lab == nil {
 			return nil, huma.Error404NotFound("Couldn't find Label with id " + strconv.FormatInt(input.ID, 10))
+		}
+		if expandHas(input.Expand, expandPathPictoSymbolset) {
+			list := []models.Label{*lab}
+			if err := db.AttachPictoSymbolsets(sqlDB, list, cfg.ImageBaseURL, cfg.AppEnv); err != nil {
+				return nil, huma.Error500InternalServerError("Internal server error", err)
+			}
+			lab = &list[0]
 		}
 		return &labelByIDOutput{Body: *lab}, nil
 	})

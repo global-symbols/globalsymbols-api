@@ -22,6 +22,18 @@ type Metadata struct {
 	APIKeyID int64
 	Email    string
 	UserID   string
+	// RateLimitPerMinute is an optional per-key override from api_keys.rate_limit_per_minute.
+	// nil = use process default (RATE_LIMIT_PER_MINUTE); 0 = unlimited; >0 = that RPM.
+	RateLimitPerMinute *int
+}
+
+// EffectiveRateLimit resolves the per-minute limit for a key.
+// override nil → defaultLimit; override 0 → unlimited (0); override >0 → that value.
+func EffectiveRateLimit(defaultLimit int, override *int) int {
+	if override != nil {
+		return *override
+	}
+	return defaultLimit
 }
 
 // APIKeyMiddleware validates the API key against the Rails api_keys table.
@@ -36,10 +48,11 @@ func APIKeyMiddleware(db *sql.DB) func(http.Handler) http.Handler {
 
 			keyDigest := digest(rawKey)
 			var metadata Metadata
+			var rateLimit sql.NullInt64
 			err := db.QueryRow(
-				`SELECT id, email FROM api_keys WHERE key_digest = ? AND revoked_at IS NULL AND activated_at IS NOT NULL`,
+				`SELECT id, email, rate_limit_per_minute FROM api_keys WHERE key_digest = ? AND revoked_at IS NULL AND activated_at IS NOT NULL`,
 				keyDigest,
-			).Scan(&metadata.APIKeyID, &metadata.Email)
+			).Scan(&metadata.APIKeyID, &metadata.Email, &rateLimit)
 			if err != nil {
 				if err == sql.ErrNoRows {
 					httpx.Error(w, http.StatusUnauthorized, `A valid, active API key is required. Provide it in the Authorization header as "ApiKey <key>" or in the X-Api-Key header.`)
@@ -47,6 +60,10 @@ func APIKeyMiddleware(db *sql.DB) func(http.Handler) http.Handler {
 				}
 				httpx.Error(w, http.StatusInternalServerError, "Internal server error")
 				return
+			}
+			if rateLimit.Valid {
+				v := int(rateLimit.Int64)
+				metadata.RateLimitPerMinute = &v
 			}
 
 			ctx := WithMetadata(r.Context(), metadata)

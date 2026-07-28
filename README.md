@@ -28,8 +28,9 @@ This uses the root `docker-compose.yml` and builds the Go API image using the ro
 
 Authenticated data endpoints under `/api/v2` are rate-limited in memory per API key.
 
-- `RATE_LIMIT_PER_MINUTE` controls the per-key allowance and defaults to `100`
-- a value less than or equal to `0` disables throttling
+- `RATE_LIMIT_PER_MINUTE` is the **default** per-key allowance (defaults to `100`)
+- a value less than or equal to `0` disables throttling for the **whole process**
+- optional per-key override: `api_keys.rate_limit_per_minute` (`NULL` = default, `0` = unlimited, `>0` = that RPM)
 - when the limit is exceeded, the API returns `429 Too Many Requests`
 - the response includes `Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `X-RateLimit-Reset`
 

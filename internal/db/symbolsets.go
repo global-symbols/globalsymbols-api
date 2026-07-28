@@ -102,3 +102,81 @@ func SymbolsetBySlug(conn *sql.DB, slug string) (id int64, status int, err error
 	).Scan(&id, &status)
 	return id, status, err
 }
+
+// SymbolsetsByIDs returns symbolsets keyed by id for the given IDs.
+// Missing IDs are omitted from the map. Shape matches ListPublished rows.
+func SymbolsetsByIDs(conn *sql.DB, ids []int64, imageBaseURL, appEnv string) (map[int64]models.Symbolset, error) {
+	out := make(map[int64]models.Symbolset)
+	if len(ids) == 0 {
+		return out, nil
+	}
+
+	// Deduplicate while preserving a stable query list.
+	seen := make(map[int64]struct{}, len(ids))
+	uniq := make([]int64, 0, len(ids))
+	for _, id := range ids {
+		if id <= 0 {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		uniq = append(uniq, id)
+	}
+	if len(uniq) == 0 {
+		return out, nil
+	}
+
+	placeholders := make([]string, len(uniq))
+	args := make([]any, len(uniq))
+	for i, id := range uniq {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+
+	rows, err := conn.Query(`
+		SELECT s.id, s.slug, s.name, s.publisher, s.publisher_url, s.status, s.featured_level, s.logo,
+		       l.name, l.url, l.version, l.properties
+		FROM symbolsets s
+		JOIN licences l ON l.id = s.licence_id
+		WHERE s.id IN (`+strings.Join(placeholders, ",")+`)`,
+		args...,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var s models.Symbolset
+		var pubURL, licURL, licVer, licProps, logo sql.NullString
+		var feat sql.NullInt64
+		var statusInt int
+		if err := rows.Scan(
+			&s.ID, &s.Slug, &s.Name, &s.Publisher, &pubURL, &statusInt, &feat, &logo,
+			&s.Licence.Name, &licURL, &licVer, &licProps,
+		); err != nil {
+			return nil, err
+		}
+		s.Status = SymbolsetStatusFromInt(statusInt)
+		if pubURL.Valid {
+			s.PublisherURL = &pubURL.String
+		}
+		if feat.Valid {
+			s.Featured = &feat.Int64
+		}
+		s.LogoURL = logoURL(imageBaseURL, appEnv, s.ID, logo)
+		if licURL.Valid {
+			s.Licence.URL = &licURL.String
+		}
+		if licVer.Valid {
+			s.Licence.Version = &licVer.String
+		}
+		if licProps.Valid {
+			s.Licence.Properties = &licProps.String
+		}
+		out[s.ID] = s
+	}
+	return out, rows.Err()
+}

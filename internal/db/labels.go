@@ -206,3 +206,29 @@ func LabelByID(conn *sql.DB, id int64, imageBaseURL string) (*models.Label, erro
 	}
 	return &lab, nil
 }
+
+// AttachPictoSymbolsets embeds nested picto.symbolset for each label using a
+// single batched lookup by distinct symbolset_id values (no N+1).
+// Labels whose symbolset cannot be loaded are left without nested symbolset.
+func AttachPictoSymbolsets(conn *sql.DB, labels []models.Label, imageBaseURL, appEnv string) error {
+	if len(labels) == 0 {
+		return nil
+	}
+	ids := make([]int64, 0, len(labels))
+	for _, lab := range labels {
+		if lab.Picto.SymbolsetID > 0 {
+			ids = append(ids, lab.Picto.SymbolsetID)
+		}
+	}
+	byID, err := SymbolsetsByIDs(conn, ids, imageBaseURL, appEnv)
+	if err != nil {
+		return err
+	}
+	for i := range labels {
+		if ss, ok := byID[labels[i].Picto.SymbolsetID]; ok {
+			cp := ss
+			labels[i].Picto.Symbolset = &cp
+		}
+	}
+	return nil
+}

@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -336,6 +337,92 @@ func TestHappy_LabelsSearch(t *testing.T) {
 		if l.Picto.PreviewDataURL != "" {
 			t.Errorf("item %d: expected picto.preview_data_url omitted by default", i)
 		}
+		if l.Picto.Symbolset != nil {
+			t.Errorf("item %d: expected picto.symbolset omitted without expand", i)
+		}
+	}
+}
+
+func TestHappy_LabelsSearch_WithExpandSymbolset(t *testing.T) {
+	skipIfNoEnv(t)
+	code, body := get(t, "/api/v2/labels/search?query=dog&language=eng&language_iso_format=639-3&limit=5&expand=picto.symbolset", true)
+	if code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body %s", code, string(body))
+	}
+
+	arr := decodeJSON[[]models.LabelSearchResult](t, body)
+	if len(arr) == 0 {
+		t.Fatalf("expected non-empty labels array")
+	}
+	for i, l := range arr {
+		if l.Picto.SymbolsetID == 0 {
+			t.Errorf("item %d: expected picto.symbolset_id > 0", i)
+			continue
+		}
+		if l.Picto.Symbolset == nil {
+			t.Errorf("item %d: expected picto.symbolset when expand=picto.symbolset", i)
+			continue
+		}
+		ss := l.Picto.Symbolset
+		if ss.ID != l.Picto.SymbolsetID {
+			t.Errorf("item %d: symbolset.id %d != picto.symbolset_id %d", i, ss.ID, l.Picto.SymbolsetID)
+		}
+		if ss.Slug == "" {
+			t.Errorf("item %d: expected symbolset.slug non-empty", i)
+		}
+		if ss.Name == "" {
+			t.Errorf("item %d: expected symbolset.name non-empty", i)
+		}
+		if ss.Licence.Name == "" {
+			t.Errorf("item %d: expected symbolset.licence.name non-empty", i)
+		}
+	}
+}
+
+func TestHappy_LabelsSearch_ExpandUnknownPathIgnored(t *testing.T) {
+	skipIfNoEnv(t)
+	code, body := get(t, "/api/v2/labels/search?query=dog&language=eng&limit=3&expand=picto.licence", true)
+	if code != http.StatusOK {
+		t.Fatalf("expected 200 for unknown expand path, got %d body %s", code, string(body))
+	}
+	arr := decodeJSON[[]models.LabelSearchResult](t, body)
+	if len(arr) == 0 {
+		t.Fatalf("expected non-empty labels array")
+	}
+	for i, l := range arr {
+		if l.Picto.Symbolset != nil {
+			t.Errorf("item %d: unexpected picto.symbolset for unrelated expand path", i)
+		}
+	}
+}
+
+func TestHappy_LabelByID_WithExpandSymbolset(t *testing.T) {
+	skipIfNoEnv(t)
+
+	// Seed from search so we use a real label id.
+	code, body := get(t, "/api/v2/labels/search?query=dog&language=eng&limit=1", true)
+	if code != http.StatusOK {
+		t.Fatalf("seed search expected 200, got %d body %s", code, string(body))
+	}
+	seed := decodeJSON[[]models.LabelSearchResult](t, body)
+	if len(seed) == 0 {
+		t.Fatalf("seed search returned no labels")
+	}
+	labelID := seed[0].ID
+
+	code, body = get(t, "/api/v2/labels/"+strconv.FormatInt(labelID, 10)+"?expand=picto.symbolset", true)
+	if code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body %s", code, string(body))
+	}
+	lab := decodeJSON[models.Label](t, body)
+	if lab.Picto.Symbolset == nil {
+		t.Fatalf("expected picto.symbolset when expand=picto.symbolset")
+	}
+	if lab.Picto.Symbolset.ID != lab.Picto.SymbolsetID {
+		t.Fatalf("symbolset.id %d != picto.symbolset_id %d", lab.Picto.Symbolset.ID, lab.Picto.SymbolsetID)
+	}
+	if lab.Picto.Symbolset.Name == "" || lab.Picto.Symbolset.Slug == "" {
+		t.Fatalf("expected nested symbolset name and slug, got name=%q slug=%q", lab.Picto.Symbolset.Name, lab.Picto.Symbolset.Slug)
 	}
 }
 

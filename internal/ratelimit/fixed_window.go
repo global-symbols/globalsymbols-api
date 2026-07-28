@@ -12,13 +12,13 @@ import (
 )
 
 type FixedWindowLimiter struct {
-	mu          sync.Mutex
-	limit       int
-	window      time.Duration
-	idleTTL     time.Duration
-	entries     map[int64]entry
-	lastCleanup time.Time
-	now         func() time.Time
+	mu           sync.Mutex
+	defaultLimit int
+	window       time.Duration
+	idleTTL      time.Duration
+	entries      map[int64]entry
+	lastCleanup  time.Time
+	now          func() time.Time
 }
 
 type entry struct {
@@ -35,23 +35,40 @@ type Decision struct {
 	ResetAt    time.Time
 }
 
-func NewFixedWindowLimiter(limit int, window time.Duration) *FixedWindowLimiter {
+// NewFixedWindowLimiter creates a limiter with a process-wide default RPM.
+// Per-request limits are passed to Check (from api_keys.rate_limit_per_minute or default).
+func NewFixedWindowLimiter(defaultLimit int, window time.Duration) *FixedWindowLimiter {
 	return &FixedWindowLimiter{
-		limit:   limit,
-		window:  window,
-		idleTTL: window * 3,
-		entries: make(map[int64]entry),
-		now:     time.Now,
+		defaultLimit: defaultLimit,
+		window:       window,
+		idleTTL:      window * 3,
+		entries:      make(map[int64]entry),
+		now:          time.Now,
 	}
 }
 
+// Enabled reports whether process-wide rate limiting is active.
+// When defaultLimit <= 0, the middleware is a no-op for all keys (global kill switch).
 func (l *FixedWindowLimiter) Enabled() bool {
-	return l != nil && l.limit > 0 && l.window > 0
+	return l != nil && l.defaultLimit > 0 && l.window > 0
 }
 
-func (l *FixedWindowLimiter) Check(key int64) Decision {
+// DefaultLimit returns the process-wide default RPM (RATE_LIMIT_PER_MINUTE).
+func (l *FixedWindowLimiter) DefaultLimit() int {
+	if l == nil {
+		return 0
+	}
+	return l.defaultLimit
+}
+
+// Check applies a fixed window limit for key using the given per-minute limit.
+// limit <= 0 means unlimited for this key (always allowed).
+func (l *FixedWindowLimiter) Check(key int64, limit int) Decision {
 	if !l.Enabled() || key == 0 {
 		return Decision{Allowed: true}
+	}
+	if limit <= 0 {
+		return Decision{Allowed: true, Limit: 0, Remaining: 0}
 	}
 
 	now := l.now().UTC()
@@ -73,11 +90,11 @@ func (l *FixedWindowLimiter) Check(key int64) Decision {
 
 	current.lastSeen = now
 
-	if current.count >= l.limit {
+	if current.count >= limit {
 		l.entries[key] = current
 		return Decision{
 			Allowed:    false,
-			Limit:      l.limit,
+			Limit:      limit,
 			Remaining:  0,
 			RetryAfter: windowEnd.Sub(now),
 			ResetAt:    windowEnd,
@@ -89,8 +106,8 @@ func (l *FixedWindowLimiter) Check(key int64) Decision {
 
 	return Decision{
 		Allowed:   true,
-		Limit:     l.limit,
-		Remaining: l.limit - current.count,
+		Limit:     limit,
+		Remaining: limit - current.count,
 		ResetAt:   windowEnd,
 	}
 }
@@ -128,7 +145,8 @@ func APIKeyMiddleware(limiter *FixedWindowLimiter) func(http.Handler) http.Handl
 				return
 			}
 
-			decision := limiter.Check(metadata.APIKeyID)
+			limit := auth.EffectiveRateLimit(limiter.DefaultLimit(), metadata.RateLimitPerMinute)
+			decision := limiter.Check(metadata.APIKeyID, limit)
 			w.Header().Set("X-RateLimit-Limit", strconv.Itoa(decision.Limit))
 			w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(decision.Remaining))
 			if !decision.ResetAt.IsZero() {
