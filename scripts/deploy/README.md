@@ -41,9 +41,11 @@ Expected contents:
    - default path: `/var/www/globalsymbols-api/.env`
 3. Ensure the service is managed by systemd and can be restarted:
    - default service: `globalsymbols-api.service`
-4. Ensure you have permission to restart the service (typically via `sudo`).
+4. Ensure the install user can restart the service without a password (see **Sudoers** below).
 
 ### Command
+
+Run as `gs-api-deploy` (owns `/var/www/globalsymbols-api` and is the systemd service user):
 
 ```bash
 ./install_release.sh --environment pre-production --release-id <RELEASE_ID>
@@ -51,6 +53,31 @@ Expected contents:
 # or
 ./install_release.sh --environment production --release-id <RELEASE_ID>
 ```
+
+### Sudoers (`gs-api-deploy`)
+
+`install_release.sh` uses `sudo systemctl restart|is-active` for the API unit. File layout under
+`/var/www/globalsymbols-api` is already owned by `gs-api-deploy`, so only `systemctl` needs elevation.
+
+Both **pre-production** (t4g) and **production** (t3 / `172.31.41.204`) should have:
+
+```text
+# /etc/sudoers.d/gs-api-deploy  (mode 440, root:root; validate with visudo -cf)
+gs-api-deploy ALL=(root) NOPASSWD: /usr/bin/systemctl, /bin/systemctl
+```
+
+Install or repair (as `ubuntu` or root):
+
+```bash
+echo 'gs-api-deploy ALL=(root) NOPASSWD: /usr/bin/systemctl, /bin/systemctl' | \
+  sudo tee /etc/sudoers.d/gs-api-deploy
+sudo chmod 440 /etc/sudoers.d/gs-api-deploy
+sudo visudo -cf /etc/sudoers.d/gs-api-deploy
+# smoke: sudo -u gs-api-deploy sudo -n systemctl is-active globalsymbols-api.service
+```
+
+Without this file, CI can still **upload** releases, but `install_release.sh` will fail at the restart step
+unless run interactively with a password-capable sudo account.
 
 ## Configurable Values
 
